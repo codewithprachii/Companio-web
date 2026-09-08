@@ -725,10 +725,6 @@ function renderQuestion() {
 
             </div>
 
-            <button class="voice-input-button">
-                🎙 Voice Input
-            </button>
-
         </main>
     `;
 }
@@ -926,8 +922,299 @@ function togglePreference(button) {
 
 
 function showFinalSetup() {
-    showPatientDashboard();
+    showRoutineSetup();
 }
+
+let routineActivities = [
+    {
+        icon: "🍳",
+        name: "Breakfast",
+        time: "9:00 AM",
+        frequency: "Daily"
+    },
+    {
+        icon: "🚶",
+        name: "Morning Walk",
+        time: "10:00 AM",
+        frequency: "Daily"
+    },
+    {
+        icon: "🍲",
+        name: "Lunch",
+        time: "1:00 PM",
+        frequency: "Daily"
+    },
+    {
+        icon: "☕",
+        name: "Tea & Water",
+        time: "4:00 PM",
+        frequency: "Daily"
+    },
+    {
+        icon: "🌙",
+        name: "Dinner",
+        time: "8:00 PM",
+        frequency: "Daily"
+    },
+    {
+        icon: "😴",
+        name: "Sleep",
+        time: "10:00 PM",
+        frequency: "Daily"
+    }
+];
+
+let editingRoutineIndex = null;
+
+
+function showRoutineSetup() {
+
+    app.innerHTML = `
+        <main class="form-screen routine-setup-screen">
+
+            <div class="screen-header">
+
+                <button class="back-button"
+                        onclick="showPreferences()">
+                    ←
+                </button>
+
+                <div>
+                    <p class="step-label">STEP 5 OF 5</p>
+                    <h1>Daily Routine</h1>
+                </div>
+
+            </div>
+
+            <p class="routine-setup-description">
+                Help them remember what happens each day.
+            </p>
+
+            <div id="routine-list" class="routine-setup-list">
+
+                ${routineActivities.map((activity, index) => `
+
+                    <div class="setup-routine-card">
+
+                        <div class="setup-routine-icon">
+                            ${activity.icon}
+                        </div>
+
+                        <div class="setup-routine-info">
+
+                            <strong>${activity.name}</strong>
+
+                            <p>
+                                ${activity.time} · ${activity.frequency}
+                            </p>
+
+                        </div>
+
+                        <button class="routine-edit-button"
+                                onclick="editRoutine(${index})">
+                            ✎
+                        </button>
+
+                        <button class="routine-remove-button"
+                                onclick="removeRoutine(${index})">
+                            ×
+                        </button>
+
+                    </div>
+
+                `).join("")}
+
+            </div>
+
+            <button class="add-routine-button"
+                    onclick="addRoutine()">
+                + Add Activity
+            </button>
+
+            <button class="primary-button form-next"
+                    onclick="saveRoutine()">
+                Save Routine →
+            </button>
+
+        </main>
+    `;
+}
+
+
+function addRoutine() {
+
+    routineActivities.push({
+        icon: "✨",
+        name: "",
+        time: "",
+        frequency: "Daily"
+    });
+
+    editingRoutineIndex = routineActivities.length - 1;
+
+    showRoutineEditor(editingRoutineIndex);
+}
+
+
+function editRoutine(index) {
+
+    editingRoutineIndex = index;
+
+    showRoutineEditor(index);
+}
+
+
+function showRoutineEditor(index) {
+
+    const activity = routineActivities[index];
+
+    app.innerHTML = `
+        <main class="form-screen routine-editor-screen">
+
+            <div class="screen-header">
+
+                <button class="back-button"
+                        onclick="showRoutineSetup()">
+                    ←
+                </button>
+
+                <div>
+                    <p class="step-label">DAILY ROUTINE</p>
+                    <h1>Edit Activity</h1>
+                </div>
+
+            </div>
+
+            <div class="routine-editor-content">
+
+                <label for="routine-name">
+                    Activity name
+                </label>
+
+                <input
+                    id="routine-name"
+                    type="text"
+                    value="${activity.name}"
+                    placeholder="e.g. Morning Exercise"
+                >
+
+                <label for="routine-time">
+                    Time
+                </label>
+
+                <input
+                    id="routine-time"
+                    type="time"
+                    value="${convertTo24Hour(activity.time)}"
+                >
+
+                <label for="routine-frequency">
+                    Frequency
+                </label>
+
+                <select id="routine-frequency">
+
+                    <option value="Daily"
+                        ${activity.frequency === "Daily" ? "selected" : ""}>
+                        Daily
+                    </option>
+
+                    <option value="Weekdays"
+                        ${activity.frequency === "Weekdays" ? "selected" : ""}>
+                        Weekdays
+                    </option>
+
+                    <option value="Weekends"
+                        ${activity.frequency === "Weekends" ? "selected" : ""}>
+                        Weekends
+                    </option>
+
+                </select>
+
+            </div>
+
+            <button class="primary-button form-next"
+                    onclick="saveRoutineActivity()">
+                Save Activity
+            </button>
+
+        </main>
+    `;
+}
+
+
+function saveRoutineActivity() {
+
+    const name = document.getElementById("routine-name").value.trim();
+    const timeValue = document.getElementById("routine-time").value;
+    const frequency = document.getElementById("routine-frequency").value;
+
+    if (!name || !timeValue) {
+        alert("Please enter the activity name and time.");
+        return;
+    }
+
+    routineActivities[editingRoutineIndex].name = name;
+    routineActivities[editingRoutineIndex].time = convertTo12Hour(timeValue);
+    routineActivities[editingRoutineIndex].frequency = frequency;
+
+    editingRoutineIndex = null;
+
+    showRoutineSetup();
+}
+
+
+function removeRoutine(index) {
+
+    routineActivities.splice(index, 1);
+
+    showRoutineSetup();
+}
+
+
+function convertTo24Hour(time) {
+
+    if (!time) return "";
+
+    const match = time.match(/(\d+):(\d+)\s*(AM|PM)/i);
+
+    if (!match) return "";
+
+    let hours = parseInt(match[1]);
+    const minutes = match[2];
+    const period = match[3].toUpperCase();
+
+    if (period === "PM" && hours !== 12) {
+        hours += 12;
+    }
+
+    if (period === "AM" && hours === 12) {
+        hours = 0;
+    }
+
+    return `${String(hours).padStart(2, "0")}:${minutes}`;
+}
+
+
+function convertTo12Hour(time) {
+
+    if (!time) return "";
+
+    let [hours, minutes] = time.split(":");
+
+    hours = parseInt(hours);
+
+    const period = hours >= 12 ? "PM" : "AM";
+
+    hours = hours % 12 || 12;
+
+    return `${hours}:${minutes} ${period}`;
+}
+
+
+function saveRoutine() {
+    showPatientDashboard();
+}  
 
 function showPatientDashboard() {
     app.innerHTML = `
@@ -1139,40 +1426,300 @@ function createMemoryGame() {
     });
 }
 
+let sequenceLevel = 1;
+let sequenceScore = 0;
+let sequence = [];
+let sequenceAnswer = [];
+let sequenceIndex = 0;
+
 function startNumberGame() {
+    sequenceLevel = 1;
+    sequenceScore = 0;
+
+    showSequenceLevelIntro();
+}
+
+function showSequenceLevelIntro() {
+    const sequenceLength = sequenceLevel + 2;
+
     document.getElementById("app").innerHTML = `
-        <main class="game-screen">
+        <main class="game-screen sequence-game-screen">
 
             <div class="game-header">
                 <button class="back-button" onclick="showGames()">←</button>
 
                 <div>
-                    <div class="step-label">BRAIN ACTIVITY</div>
-                    <h1>Number Sequence</h1>
+                    <div class="step-label">MEMORY ACTIVITY</div>
+                    <h1>Remember the Sequence</h1>
                 </div>
             </div>
 
-            <div class="number-game">
-                <p class="game-instruction">
-                    Remember the numbers in the order shown.
-                </p>
+            <div class="sequence-level-card">
 
-                <div id="number-display" class="number-display">
-                    3 7 2
+                <div class="sequence-game-icon">
+                    🧠
                 </div>
 
-                <button class="primary-button" id="start-number-button"
-                    onclick="startNumberRound()">
-                    Start
+                <p class="sequence-level-label">
+                    LEVEL ${sequenceLevel}
+                </p>
+
+                <h2>Remember the numbers</h2>
+
+                <p>
+                    Watch the sequence carefully,
+                    then tap the numbers in the same order.
+                </p>
+
+                <div class="sequence-reward">
+                    ⭐ ${sequenceScore} points
+                </div>
+
+                <button class="primary-button"
+                        onclick="startSequenceRound()">
+                    Start Level ${sequenceLevel}
                 </button>
 
-                <div id="number-options" class="number-options"></div>
-
-                <p id="number-message" class="game-message"></p>
             </div>
 
         </main>
     `;
+}
+
+function startSequenceRound() {
+
+    const length = sequenceLevel + 2;
+
+    sequence = [];
+
+    for (let i = 0; i < length; i++) {
+        sequence.push(Math.floor(Math.random() * 9) + 1);
+    }
+
+    sequenceAnswer = [];
+    sequenceIndex = 0;
+
+    document.getElementById("app").innerHTML = `
+        <main class="game-screen sequence-game-screen">
+
+            <div class="game-header">
+
+                <div>
+                    <div class="step-label">
+                        LEVEL ${sequenceLevel}
+                    </div>
+
+                    <h1>Remember</h1>
+                </div>
+
+            </div>
+
+            <div class="sequence-display-card">
+
+                <p class="game-instruction">
+                    Remember this sequence
+                </p>
+
+                <div id="sequence-display"
+                     class="sequence-display">
+                    ${sequence.join("   ")}
+                </div>
+
+                <p class="sequence-countdown">
+                    Look carefully...
+                </p>
+
+            </div>
+
+        </main>
+    `;
+
+    setTimeout(() => {
+        showSequenceOptions();
+    }, 3000);
+}
+
+function showSequenceOptions() {
+
+    const shuffledNumbers = [...sequence];
+
+    // Add extra numbers so the player has to remember
+    while (shuffledNumbers.length < sequence.length + 3) {
+
+        const number = Math.floor(Math.random() * 9) + 1;
+
+        if (!shuffledNumbers.includes(number)) {
+            shuffledNumbers.push(number);
+        }
+    }
+
+    shuffledNumbers.sort(() => Math.random() - 0.5);
+
+    document.getElementById("app").innerHTML = `
+        <main class="game-screen sequence-game-screen">
+
+            <div class="game-header">
+
+                <div>
+                    <div class="step-label">
+                        LEVEL ${sequenceLevel}
+                    </div>
+
+                    <h1>Your Turn</h1>
+                </div>
+
+            </div>
+
+            <div class="sequence-question-card">
+
+                <p class="game-instruction">
+                    Tap the numbers in the order you remember.
+                </p>
+
+                <div class="sequence-answer-display"
+                     id="sequence-answer-display">
+                    ${sequenceAnswer.map(() => "•").join(" ")}
+                </div>
+
+                <div class="sequence-options">
+
+                    ${shuffledNumbers.map(number => `
+                        <button class="sequence-number-button"
+                                onclick="chooseSequenceNumber(${number})">
+                            ${number}
+                        </button>
+                    `).join("")}
+
+                </div>
+
+                <p id="sequence-message"
+                   class="game-message">
+                </p>
+
+            </div>
+
+        </main>
+    `;
+}
+
+function chooseSequenceNumber(number) {
+
+    const message = document.getElementById("sequence-message");
+
+    sequenceAnswer.push(number);
+
+    const currentPosition = sequenceAnswer.length - 1;
+
+    if (number !== sequence[currentPosition]) {
+
+        message.innerText =
+            "That's okay. Let's try this level again. 🌸";
+
+        message.className = "game-message wrong";
+
+        setTimeout(() => {
+            showSequenceLevelIntro();
+        }, 1200);
+
+        return;
+    }
+
+    const answerDisplay =
+        document.getElementById("sequence-answer-display");
+
+    answerDisplay.innerText =
+        sequenceAnswer.join("   ");
+
+    if (sequenceAnswer.length === sequence.length) {
+
+        sequenceScore += sequenceLevel * 10;
+
+        setTimeout(() => {
+            completeSequenceLevel();
+        }, 600);
+    }
+}
+
+function completeSequenceLevel() {
+
+    if (sequenceLevel < 3) {
+
+        document.getElementById("app").innerHTML = `
+            <main class="game-screen sequence-game-screen">
+
+                <div class="sequence-reward-screen">
+
+                    <div class="big-reward">
+                        ⭐
+                    </div>
+
+                    <h1>Well done! 🌸</h1>
+
+                    <p>
+                        You remembered the whole sequence.
+                    </p>
+
+                    <div class="reward-points">
+                        +${sequenceLevel * 10} points
+                    </div>
+
+                    <p>
+                        Total: ${sequenceScore} points
+                    </p>
+
+                    <button class="primary-button"
+                            onclick="nextSequenceLevel()">
+                        Next Level →
+                    </button>
+
+                </div>
+
+            </main>
+        `;
+
+    } else {
+
+        document.getElementById("app").innerHTML = `
+            <main class="game-screen sequence-game-screen">
+
+                <div class="sequence-reward-screen">
+
+                    <div class="big-reward">
+                        🏆
+                    </div>
+
+                    <h1>Excellent! 🌸</h1>
+
+                    <p>
+                        You completed all 3 levels.
+                    </p>
+
+                    <div class="reward-points">
+                        ⭐ ${sequenceScore} points
+                    </div>
+
+                    <p>
+                        You did a great job remembering
+                        the sequences.
+                    </p>
+
+                    <button class="primary-button"
+                            onclick="showGames()">
+                        Back to Activities
+                    </button>
+
+                </div>
+
+            </main>
+        `;
+    }
+}
+
+function nextSequenceLevel() {
+
+    sequenceLevel++;
+
+    showSequenceLevelIntro();
 }
 
 function startNumberRound() {
