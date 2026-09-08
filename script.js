@@ -20,49 +20,184 @@ const loadingTimer = setInterval(() => {
 
 
 function showStayConnected() {
+    showIntroStayConnected();
+}
+
+function showIntroStayConnected() {
     app.innerHTML = `
-        <main class="onboarding-screen setup-choice-screen">
+        <main class="onboarding-screen">
 
-            <h1>Who are you setting<br>Companio up for?</h1>
+            <div class="onboarding-icon">
+                ❤️
+            </div>
 
-            <p class="setup-subtitle">
-                We'll personalise the experience for you
+            <h1>Stay Connected</h1>
+
+            <p>
+                Family connections, caregiver support
+                and proactive check-ins — always with warmth.
             </p>
 
-            <div class="setup-options">
+            <div class="onboarding-dots">
+                <span></span>
+                <span></span>
+                <span class="active"></span>
+                <span></span>
+            </div>
 
-                <button class="setup-card" onclick="selectSetup('myself')">
+            <button class="primary-button" onclick="showIntroDailyCompanion()">
+                Next
+            </button>
 
-                    <div class="setup-icon flower-icon">
-                        🌼
-                    </div>
+        </main>
+    `;
+}
 
-                    <h2>Myself</h2>
 
-                    <p>I'll be using Companio for me.</p>
+function showIntroDailyCompanion() {
+    app.innerHTML = `
+        <main class="onboarding-screen">
 
-                    <strong>
-                        Set up your own profile → Patient experience
-                    </strong>
+            <div class="onboarding-icon">
+                🔔
+            </div>
 
-                </button>
+            <h1>Your Daily Companion</h1>
 
-                <button class="setup-card someone-card"
-                        onclick="selectSetup('someone')">
+            <p>
+                Medicine, meals, hydration and
+                routine reminders with friendly
+                voice guidance.
+            </p>
 
-                    <div class="setup-icon heart-icon">
-                        ❤️
-                    </div>
+            <div class="onboarding-dots">
+                <span></span>
+                <span class="active"></span>
+                <span></span>
+                <span></span>
+            </div>
 
-                    <h2>Someone Else</h2>
+            <button class="primary-button" onclick="showIntroRememberEngage()">
+                Next
+            </button>
 
-                    <p>I'm a caregiver setting it up for someone.</p>
+        </main>
+    `;
+}
 
-                    <strong>
-                        Caregiver setup · Dashboard · Monitor progress
-                    </strong>
 
-                </button>
+function showIntroRememberEngage() {
+    app.innerHTML = `
+        <main class="onboarding-screen">
+
+            <div class="onboarding-icon">
+                🎯
+            </div>
+
+            <h1>Remember & Engage</h1>
+
+            <p>
+                Personalized memory, attention
+                and reasoning activities —
+                designed for their unique story.
+            </p>
+
+            <div class="onboarding-dots">
+                <span class="active"></span>
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+
+            <button class="primary-button" onclick="showIntroOffline()">
+                Next
+            </button>
+
+        </main>
+    `;
+}
+
+
+function showIntroOffline() {
+    app.innerHTML = `
+        <main class="onboarding-screen">
+
+            <div class="onboarding-icon">
+                📡
+            </div>
+
+            <h1>Works Even Offline</h1>
+
+            <p>
+                Essential features continue without
+                internet. Data syncs automatically
+                when connectivity returns.
+            </p>
+
+            <div class="onboarding-dots">
+                <span></span>
+                <span></span>
+                <span></span>
+                <span class="active"></span>
+            </div>
+
+            <button class="primary-button" onclick="showLanguageScreen()">
+                Get Started
+            </button>
+
+        </main>
+    `;
+}
+
+let currentLanguage = "en";
+
+function showLanguageScreen() {
+    app.innerHTML = `
+        <main class="language-screen">
+
+            <div class="language-content">
+
+                <div class="step-label">WELCOME TO COMPANIO</div>
+
+                <h1>Choose Your Language</h1>
+
+                <p>
+                    Select the language you would like Companio to use.
+                </p>
+
+                <div class="language-options">
+
+                    <button onclick="selectLanguage('en')">
+                        🇬🇧
+                        <span>English</span>
+                    </button>
+
+                    <button onclick="selectLanguage('hi')">
+                        🇮🇳
+                        <span>हिन्दी</span>
+                    </button>
+
+                    <button onclick="selectLanguage('as')">
+                        অসমীয়া
+                        <span>Assamese</span>
+                    </button>
+
+                    <button onclick="selectLanguage('kha')">
+                        বাংলা
+                        <span>Bengali</span>
+                    </button>
+
+                    <button onclick="selectLanguage('mni')">
+                        ꯃꯤꯇꯩ
+                        <span>Manipuri</span>
+                    </button>
+
+                    <button onclick="selectLanguage('brx')">
+                        बड़ो
+                        <span>Bodo</span>
+                    </button>
+
+                </div>
 
             </div>
 
@@ -70,6 +205,155 @@ function showStayConnected() {
     `;
 }
 
+function selectLanguage(language) {
+    currentLanguage = language;
+    showSetupIntro();
+}
+
+function showSetupIntro() {
+    app.innerHTML = `
+        <main class="onboarding-screen setup-intro-screen">
+
+            <div class="setup-intro-icon">
+                🌸
+            </div>
+
+            <h1>Let's get to know you.</h1>
+
+            <p class="setup-intro-description">
+                We'll set up your profile so Companio
+                can support you every day.
+            </p>
+
+            <div class="setup-intro-list">
+
+                <div>
+                    <span>📋</span>
+                    <strong>Your basic profile</strong>
+                </div>
+
+                <div>
+                    <span>🧩</span>
+                    <strong>Memory & support needs</strong>
+                </div>
+
+                <div>
+                    <span>🕐</span>
+                    <strong>Daily routine & medicines</strong>
+                </div>
+
+                <div>
+                    <span>👨‍👩‍👧</span>
+                    <strong>Familiar people & places</strong>
+                </div>
+
+                <div>
+                    <span>🎵</span>
+                    <strong>Comfort preferences</strong>
+                </div>
+
+            </div>
+
+            <button class="primary-button"
+                    onclick="showSetupScreen()">
+                Begin Setup
+            </button>
+
+        </main>
+    `;
+}
+
+const translations = {
+    en: {
+        setupQuestion: "Who are you setting Companio up for?",
+        setupSubtitle: "We'll personalise the experience for you",
+
+        myself: "Myself",
+        myselfDescription: "I'll be using Companio for me.",
+        myselfDetails: "Set up your own profile → Patient experience",
+
+        someoneElse: "Someone Else",
+        someoneDescription: "I'm a caregiver setting it up for someone.",
+        someoneDetails: "Caregiver setup · Dashboard · Monitor progress"
+    },
+
+
+    hi: {
+        setupQuestion: "आप Companio किसके लिए सेट कर रहे हैं?",
+        setupSubtitle: "हम आपके लिए अनुभव को व्यक्तिगत बनाएंगे",
+
+        myself: "मेरे लिए",
+        myselfDescription: "मैं अपने लिए Companio का उपयोग करूंगा/करूंगी।",
+        myselfDetails: "अपनी प्रोफ़ाइल सेट करें → रोगी अनुभव",
+
+        someoneElse: "किसी और के लिए",
+        someoneDescription: "मैं किसी और के लिए इसे सेट करने वाला/वाली देखभालकर्ता हूँ।",
+        someoneDetails: "देखभालकर्ता सेटअप · डैशबोर्ड · प्रगति देखें"
+    },
+
+
+    as: {
+        setupQuestion: "আপুনি কাৰ বাবে Companio ছেট আপ কৰিছে?",
+        setupSubtitle: "আমি আপোনাৰ বাবে অভিজ্ঞতাটো ব্যক্তিগত কৰি তুলিম",
+
+        myself: "মোৰ বাবে",
+        myselfDescription: "মই নিজৰ বাবে Companio ব্যৱহাৰ কৰিম।",
+        myselfDetails: "নিজৰ প্ৰফাইল ছেট আপ কৰক → ৰোগীৰ অভিজ্ঞতা",
+
+        someoneElse: "আন কাৰোবাৰ বাবে",
+        someoneDescription: "মই আন কাৰোবাৰ বাবে ইয়াক ছেট আপ কৰা এজন যত্ন লওঁতা।",
+        someoneDetails: "যত্ন লওঁতাৰ ছেটআপ · ডেশ্বব'ৰ্ড · অগ্ৰগতি নিৰীক্ষণ"
+    },
+
+
+    mni: {
+        setupQuestion: "ꯅꯍꯥꯛꯅ ꯀꯅꯥꯒꯤꯗꯃꯛ Companio ꯁꯦꯠ ꯑꯞ ꯇꯧꯔꯤꯕꯒꯦ?",
+        setupSubtitle: "ꯅꯍꯥꯛꯀꯤꯗꯃꯛ ꯑꯁꯤꯒꯤ ꯂꯣꯟ ꯑꯃꯁꯨꯡ ꯃꯇꯦꯡ ꯇꯧꯔꯒꯦ",
+
+        myself: "ꯑꯩꯒꯤꯗꯃꯛ",
+        myselfDescription: "ꯑꯩꯅ ꯑꯩꯒꯤꯗꯃꯛ Companio ꯁꯤꯖꯤꯟꯅꯒꯦ।",
+        myselfDetails: "ꯑꯩꯒꯤ ꯄ꯭ꯔꯣꯐꯥꯏꯜ ꯁꯦꯠ ꯑꯞ ꯇꯧꯕ → ꯄꯦꯁꯦꯟꯇ ꯑꯅꯨꯕꯤꯡ",
+
+        someoneElse: "ꯑꯇꯣꯞꯄꯒꯤꯗꯃꯛ",
+        someoneDescription: "ꯑꯩ ꯑꯇꯣꯞꯄꯒꯤꯗꯃꯛ ꯁꯦꯠ ꯑꯞ ꯇꯧꯔꯤꯕ ꯀꯌꯔꯒꯤꯕ ꯑꯃꯅꯤ।",
+        someoneDetails: "ꯀꯌꯔꯒꯤꯕ ꯁꯦꯠ ꯑꯞ · ꯗꯦꯁꯕꯣꯔꯗ · ꯄ꯭ꯔꯣꯒ꯭ꯔꯦꯁ ꯃꯣꯅꯤꯇꯔ"
+    },
+
+
+    brx: {
+        setupQuestion: "नों बेसेखौ Companio सेटअप खालामगोन?",
+        setupSubtitle: "नोंनि थाखाय अनुभवखौ निजि खालामगोन",
+
+        myself: "आंनो",
+        myselfDescription: "आं नोंथांनायनि थाखाय Companio बाहायगोन।",
+        myselfDetails: "नोंनि प्रोफाइल सेटअप खालाम → रोगी अनुभव",
+
+        someoneElse: "गुबुन जानायनो",
+        someoneDescription: "आं गुबुन मोनसे मानो होनायनि थाखाय सेटअप खालामगोन।",
+        someoneDetails: "केयरगिभार सेटअप · डेशबोर्ड · प्रोग्रेस मोनिटर"
+    },
+
+
+    bn: {
+    chooseLanguage: "আপনার ভাষা নির্বাচন করুন",
+    languageDescription: "Companio ব্যবহার করার জন্য আপনার পছন্দের ভাষা নির্বাচন করুন।",
+    myself: "আমার জন্য",
+    someoneElse: "অন্য কারও জন্য",
+    patientNameAge: "রোগীর নাম ও বয়স",
+    next: "পরবর্তী →",
+
+    setupQuestion: "আপনি কার জন্য Companio সেট আপ করছেন?",
+    setupSubtitle: "আমরা আপনার জন্য অভিজ্ঞতাটি ব্যক্তিগত করে তুলব",
+    myselfDescription: "আমি নিজের জন্য Companio ব্যবহার করব।",
+    myselfDetails: "নিজের প্রোফাইল সেট আপ করুন → রোগীর অভিজ্ঞতা",
+    someoneDescription: "আমি অন্য কারও জন্য এটি সেট আপ করা একজন পরিচর্যাকারী।",
+    someoneDetails: "পরিচর্যাকারী সেটআপ · ড্যাশবোর্ড · অগ্রগতি পর্যবেক্ষণ"
+    },
+};
+
+function t(key) {
+    return translations[currentLanguage][key] || translations.en[key] || key;
+}
 
 let setupFor = "";
 
@@ -114,15 +398,18 @@ function showOfflineScreen() {
     `;
 }
 
-
 function showSetupScreen() {
     app.innerHTML = `
         <main class="onboarding-screen setup-choice-screen">
 
-            <h1>Who are you setting<br>Companio up for?</h1>
+        <button class="setup-back-button" onclick="showLanguageScreen()">
+            ← Back
+        </button>
+
+            <h1>${t("setupQuestion")}</h1>
 
             <p class="setup-subtitle">
-                We'll personalise the experience for you
+                ${t("setupSubtitle")}
             </p>
 
             <div class="setup-options">
@@ -134,14 +421,14 @@ function showSetupScreen() {
                         🌼
                     </div>
 
-                    <h2>Myself</h2>
+                    <h2>${t("myself")}</h2>
 
                     <p>
-                        I'll be using Companio for me.
+                        ${t("myselfDescription")}
                     </p>
 
                     <strong>
-                        Set up your own profile → Patient experience
+                        ${t("myselfDetails")}
                     </strong>
 
                 </button>
@@ -154,14 +441,14 @@ function showSetupScreen() {
                         ❤️
                     </div>
 
-                    <h2>Someone Else</h2>
+                    <h2>${t("someoneElse")}</h2>
 
                     <p>
-                        I'm a caregiver setting it up for someone.
+                        ${t("someoneDescription")}
                     </p>
 
                     <strong>
-                        Caregiver setup · Dashboard · Monitor progress
+                        ${t("someoneDetails")}
                     </strong>
 
                 </button>
@@ -210,12 +497,30 @@ function showPatientInfo() {
             </div>
 
             <button class="primary-button form-next"
-                    onclick="continueAfterPatientInfo()">
+                    onclick="savePatientInfo()">
                 Next →
             </button>
 
         </main>
     `;
+}
+
+let patientName = "";
+let patientAge = "";
+
+function savePatientInfo() {
+    const nameInput = document.getElementById("patient-name");
+    const ageInput = document.getElementById("patient-age");
+
+    patientName = nameInput.value.trim();
+    patientAge = ageInput.value.trim();
+
+    if (patientName === "" || patientAge === "") {
+        alert("Please enter the patient's name and age.");
+        return;
+    }
+
+    continueAfterPatientInfo();
 }
 
 function continueAfterPatientInfo() {
@@ -564,19 +869,6 @@ function showPreferences() {
 
             <div class="form-content">
 
-                <label for="language">
-                    Preferred language
-                </label>
-
-                <select id="language">
-                    <option value="">Choose a language</option>
-                    <option>English</option>
-                    <option>Hindi</option>
-                    <option>Bengali</option>
-                    <option>Assamese</option>
-                    <option>Manipuri</option>
-                </select>
-
                 <label for="communication">
                     Preferred way to communicate
                 </label>
@@ -643,7 +935,8 @@ function showPatientDashboard() {
 
             <div class="dashboard-header">
                 <p>Good Morning</p>
-                <h1>Hello 👋</h1>
+                <h1>Hello, ${patientName} 👋</h1>
+                <p>Age: ${patientAge}</p>
                 <p>Let's see what's planned for today.</p>
             </div>
 
@@ -673,6 +966,9 @@ function showPatientDashboard() {
 
             <section class="dashboard-card">
                 <h2>What do I do now?</h2>
+            <button class="routine-view-button" onclick="showNextActivity()">
+                ✨ Show My Next Activity
+            </button>
 
             <button class="routine-view-button" onclick="showRoutine()">
                 View My Full Routine
@@ -1438,6 +1734,87 @@ function showSettings() {
                         <input type="checkbox" checked>
                         <span class="slider"></span>
                     </label>
+                </div>
+
+            </div>
+
+        </main>
+    `;
+}
+
+function showNextActivity() {
+    document.getElementById("app").innerHTML = `
+        <main class="game-screen">
+
+            <div class="game-header">
+                <button class="back-button" onclick="showPatientDashboard()">←</button>
+
+                <div>
+                    <div class="step-label">YOUR NEXT ACTIVITY</div>
+                    <h1>What do I do now?</h1>
+                </div>
+            </div>
+
+            <div class="next-activity-card">
+
+                <div class="next-activity-icon">
+                    🧩
+                </div>
+
+                <h2>Time for a Brain Activity</h2>
+
+                <p>
+                    Let's spend a few minutes doing something fun
+                    and engaging.
+                </p>
+
+                <button class="primary-button" onclick="showGames()">
+                    Start Activity
+                </button>
+
+                <button class="routine-view-button"
+                    onclick="showPatientDashboard()">
+                    I'll do it later
+                </button>
+
+            </div>
+
+        </main>
+    `;
+}
+
+function showPatientProfile() {
+    document.getElementById("app").innerHTML = `
+        <main class="game-screen">
+
+            <div class="game-header">
+                <button class="back-button" onclick="showPatientDashboard()">←</button>
+
+                <div>
+                    <div class="step-label">MY PROFILE</div>
+                    <h1>My Profile</h1>
+                </div>
+            </div>
+
+            <div class="profile-container">
+
+                <div class="profile-photo">
+                    👤
+                </div>
+
+                <div class="profile-card">
+                    <strong>Name</strong>
+                    <p>Patient Name</p>
+                </div>
+
+                <div class="profile-card">
+                    <strong>Age</strong>
+                    <p>65 years</p>
+                </div>
+
+                <div class="profile-card">
+                    <strong>Patient ID</strong>
+                    <p>CP-48291</p>
                 </div>
 
             </div>
