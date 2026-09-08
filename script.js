@@ -664,6 +664,9 @@ function showPatientDashboard() {
                     <div>
                         <strong>Medicine Reminder</strong>
                         <p>Next reminder at 10:00 AM</p>
+                        <button class="routine-view-button" onclick="showMedicines()">
+                            View Medicine Reminders
+                        </button>
                     </div>
                 </div>
             </section>
@@ -671,24 +674,28 @@ function showPatientDashboard() {
             <section class="dashboard-card">
                 <h2>What do I do now?</h2>
 
+            <button class="routine-view-button" onclick="showRoutine()">
+                View My Full Routine
+            </button>
+
+
                 <div class="dashboard-actions">
                     <button onclick="showGames()">🎮<br>Play a Game</button>
-                    <button>💬<br>Talk to Me</button>
-                    <button>🧠<br>My Progress</button>
-                    <button>❤️<br>My Memories</button>
+                    <button onclick="showTalkToMe()">💬<br>Talk to Me</button>
+                    <button onclick="showProgress()">🧠<br>My Progress</button>
+                    <button onclick="showMemories()">❤️<br>My Memories</button>
                 </div>
             </section>
 
-            <button class="help-button">
+            <button class="help-button" onclick="showHelp()">
                 🆘 I Need Help
             </button>
 
-            <nav class="bottom-nav">
-                <button>⌂<span>Home</span></button>
-                <button>🎮<span>Activities</span></button>
-                <button>💚<span>Memories</span></button>
-                <button>⚙<span>More</span></button>
-            </nav>
+                <div class="bottom-nav">
+                    <button onclick="showPatientDashboard()">⌂<span>Home</span></button>
+                    <button onclick="showGames()">♡<span>Activities</span></button>
+                    <button onclick="showSettings()">⚙<span>Settings</span></button>
+                 </div>
 
         </main>
     `;
@@ -724,9 +731,9 @@ function showGames() {
             </div>
 
             <div class="dashboard-card">
-                <h2>🗣️ Conversation</h2>
-                <p>Talk with Companio through a simple guided activity.</p>
-                <button class="primary-button">
+                <h2>🧠 Familiar People</h2>
+                <p>Look at familiar people and remember who they are.</p>
+                <button class="primary-button" onclick="startPeopleActivity()">
                     Start Activity
                 </button>
             </div>
@@ -837,5 +844,604 @@ function createMemoryGame() {
 }
 
 function startNumberGame() {
-    alert("Number Sequence will be added next.");
+    document.getElementById("app").innerHTML = `
+        <main class="game-screen">
+
+            <div class="game-header">
+                <button class="back-button" onclick="showGames()">←</button>
+
+                <div>
+                    <div class="step-label">BRAIN ACTIVITY</div>
+                    <h1>Number Sequence</h1>
+                </div>
+            </div>
+
+            <div class="number-game">
+                <p class="game-instruction">
+                    Remember the numbers in the order shown.
+                </p>
+
+                <div id="number-display" class="number-display">
+                    3 7 2
+                </div>
+
+                <button class="primary-button" id="start-number-button"
+                    onclick="startNumberRound()">
+                    Start
+                </button>
+
+                <div id="number-options" class="number-options"></div>
+
+                <p id="number-message" class="game-message"></p>
+            </div>
+
+        </main>
+    `;
+}
+
+function startNumberRound() {
+    const display = document.getElementById("number-display");
+    const startButton = document.getElementById("start-number-button");
+    const options = document.getElementById("number-options");
+    const message = document.getElementById("number-message");
+
+    startButton.style.display = "none";
+    options.innerHTML = "";
+    message.innerText = "";
+
+    const sequence = [];
+
+    for (let i = 0; i < 3; i++) {
+        sequence.push(Math.floor(Math.random() * 9) + 1);
+    }
+
+    display.innerText = sequence.join(" ");
+
+    setTimeout(() => {
+
+        display.innerText = "?";
+
+        const shuffled = [...sequence].sort(() => Math.random() - 0.5);
+
+        shuffled.forEach((number) => {
+            const button = document.createElement("button");
+
+            button.className = "number-option";
+            button.innerText = number;
+
+            button.onclick = () => {
+
+                const chosen = Number(button.innerText);
+
+                if (chosen === sequence[0]) {
+                    message.innerText = "Correct! 🌸";
+                    message.className = "game-message correct";
+                } else {
+                    message.innerText = "Try again!";
+                    message.className = "game-message wrong";
+                }
+            };
+
+            options.appendChild(button);
+        });
+
+    }, 2500);
+}
+
+function startPeopleActivity() {
+    document.getElementById("app").innerHTML = `
+        <main class="game-screen">
+
+            <div class="game-header">
+                <button class="back-button" onclick="showGames()">←</button>
+
+                <div>
+                    <div class="step-label">MEMORY ACTIVITY</div>
+                    <h1>Familiar People</h1>
+                </div>
+            </div>
+
+            <div class="people-activity">
+
+                <p class="game-instruction">
+                    Who is this person?
+                </p>
+
+                <div class="person-placeholder">
+                    👩
+                </div>
+
+                <div class="people-options">
+
+                    <button onclick="checkPersonAnswer(this, true)">
+                        Family Member
+                    </button>
+
+                    <button onclick="checkPersonAnswer(this, false)">
+                        Friend
+                    </button>
+
+                    <button onclick="checkPersonAnswer(this, false)">
+                        Doctor
+                    </button>
+
+                </div>
+
+                <p id="people-message" class="game-message"></p>
+
+            </div>
+
+        </main>
+    `;
+}
+
+function checkPersonAnswer(button, correct) {
+    const message = document.getElementById("people-message");
+
+    if (correct) {
+        message.innerText = "That's right! 🌸";
+        message.className = "game-message correct";
+    } else {
+        message.innerText = "That's okay, try another one.";
+        message.className = "game-message wrong";
+    }
+}
+
+function showTalkToMe() {
+    document.getElementById("app").innerHTML = `
+        <main class="game-screen">
+
+            <div class="game-header">
+                <button class="back-button" onclick="showPatientDashboard()">←</button>
+
+                <div>
+                    <div class="step-label">COMPANIO</div>
+                    <h1>Talk to Me</h1>
+                </div>
+            </div>
+
+            <div class="talk-container">
+
+                <div class="companio-message">
+                    <div class="message-icon">🌸</div>
+                    <p>Hello! I'm here with you.</p>
+                    <p>How are you feeling today?</p>
+                </div>
+
+                <div class="talk-options">
+
+                    <button onclick="talkResponse('happy')">
+                        😊 I'm feeling good
+                    </button>
+
+                    <button onclick="talkResponse('okay')">
+                        😐 I'm okay
+                    </button>
+
+                    <button onclick="talkResponse('sad')">
+                        😔 I'm not feeling good
+                    </button>
+
+                </div>
+
+                <p id="talk-response" class="game-message"></p>
+
+            </div>
+
+        </main>
+    `;
+}
+
+function showProgress() {
+    document.getElementById("app").innerHTML = `
+        <main class="game-screen">
+
+            <div class="game-header">
+                <button class="back-button" onclick="showPatientDashboard()">←</button>
+
+                <div>
+                    <div class="step-label">MY PROGRESS</div>
+                    <h1>Your Progress</h1>
+                </div>
+            </div>
+
+            <div class="progress-container">
+
+                <div class="progress-card">
+                    <span>🧩</span>
+                    <div>
+                        <strong>Brain Activities</strong>
+                        <p>4 activities completed</p>
+                    </div>
+                </div>
+
+                <div class="progress-card">
+                    <span>💊</span>
+                    <div>
+                        <strong>Medicine Routine</strong>
+                        <p>All reminders followed today</p>
+                    </div>
+                </div>
+
+                <div class="progress-card">
+                    <span>🕐</span>
+                    <div>
+                        <strong>Daily Routine</strong>
+                        <p>3 of 4 activities completed</p>
+                    </div>
+                </div>
+
+                <div class="progress-card">
+                    <span>🌸</span>
+                    <div>
+                        <strong>Overall Progress</strong>
+                        <p>You're doing great today!</p>
+                    </div>
+                </div>
+
+            </div>
+
+        </main>
+    `;
+}
+
+function showMemories() {
+    document.getElementById("app").innerHTML = `
+        <main class="game-screen">
+
+            <div class="game-header">
+                <button class="back-button" onclick="showPatientDashboard()">←</button>
+
+                <div>
+                    <div class="step-label">MY MEMORIES</div>
+                    <h1>My Memories</h1>
+                </div>
+            </div>
+
+            <div class="memories-container">
+
+                <div class="memory-card">
+                    <div class="memory-icon">📷</div>
+                    <div>
+                        <h2>Family</h2>
+                        <p>Photos and memories with your loved ones.</p>
+                    </div>
+                </div>
+
+                <div class="memory-card">
+                    <div class="memory-icon">🏡</div>
+                    <div>
+                        <h2>Special Places</h2>
+                        <p>Places that are familiar and meaningful to you.</p>
+                    </div>
+                </div>
+
+                <div class="memory-card">
+                    <div class="memory-icon">🎵</div>
+                    <div>
+                        <h2>Favourite Things</h2>
+                        <p>Music, activities and things you enjoy.</p>
+                    </div>
+                </div>
+
+                <button class="primary-button" onclick="addMemory()">
+                    + Add a Memory
+                </button>
+
+            </div>
+
+        </main>
+    `;
+}
+
+function addMemory() {
+    alert("Memory upload will be added later.");
+}
+
+function showHelp() {
+    document.getElementById("app").innerHTML = `
+        <main class="game-screen">
+
+            <div class="game-header">
+                <button class="back-button" onclick="showPatientDashboard()">←</button>
+
+                <div>
+                    <div class="step-label">SUPPORT</div>
+                    <h1>I Need Help</h1>
+                </div>
+            </div>
+
+            <div class="help-container">
+
+                <p class="game-instruction">
+                    What do you need help with?
+                </p>
+
+                <button class="help-option" onclick="helpResponse('medicine')">
+                    💊
+                    <span>
+                        <strong>Medicine</strong>
+                        <small>I need help with my medicine.</small>
+                    </span>
+                </button>
+
+                <button class="help-option" onclick="helpResponse('routine')">
+                    🕐
+                    <span>
+                        <strong>Daily Routine</strong>
+                        <small>I'm not sure what I should do now.</small>
+                    </span>
+                </button>
+
+                <button class="help-option" onclick="helpResponse('person')">
+                    👩‍⚕️
+                    <span>
+                        <strong>Contact Someone</strong>
+                        <small>I would like to contact my caregiver.</small>
+                    </span>
+                </button>
+
+                <button class="help-option" onclick="helpResponse('other')">
+                    🌸
+                    <span>
+                        <strong>Something Else</strong>
+                        <small>I need help with something else.</small>
+                    </span>
+                </button>
+
+                <p id="help-message" class="game-message"></p>
+
+            </div>
+
+        </main>
+    `;
+}
+
+function helpResponse(type) {
+    const message = document.getElementById("help-message");
+
+    if (type === "medicine") {
+        message.innerText = "Your medicine reminders are available on your dashboard.";
+    } else if (type === "routine") {
+        message.innerText = "Let's check what is next in your daily routine.";
+    } else if (type === "person") {
+        message.innerText = "Your caregiver can be contacted from here.";
+    } else {
+        message.innerText = "I'm here to help. Tell me what you need.";
+    }
+
+    message.className = "game-message correct";
+}
+
+function showRoutine() {
+    document.getElementById("app").innerHTML = `
+        <main class="game-screen">
+
+            <div class="game-header">
+                <button class="back-button" onclick="showPatientDashboard()">←</button>
+
+                <div>
+                    <div class="step-label">DAILY ROUTINE</div>
+                    <h1>My Routine</h1>
+                </div>
+            </div>
+
+            <div class="routine-full">
+
+                <div class="routine-full-item">
+                    <span>🌅</span>
+                    <div>
+                        <strong>Morning</strong>
+                        <p>Wake up, freshen up and have breakfast.</p>
+                    </div>
+                </div>
+
+                <div class="routine-full-item">
+                    <span>💊</span>
+                    <div>
+                        <strong>Medicine</strong>
+                        <p>Take your morning medicine.</p>
+                    </div>
+                </div>
+
+                <div class="routine-full-item">
+                    <span>🧩</span>
+                    <div>
+                        <strong>Brain Activity</strong>
+                        <p>Spend some time on a memory activity.</p>
+                    </div>
+                </div>
+
+                <div class="routine-full-item">
+                    <span>🍽️</span>
+                    <div>
+                        <strong>Lunch</strong>
+                        <p>Have your lunch and take some rest.</p>
+                    </div>
+                </div>
+
+                <div class="routine-full-item">
+                    <span>🌙</span>
+                    <div>
+                        <strong>Evening</strong>
+                        <p>Relax, talk to Companio or enjoy a familiar activity.</p>
+                    </div>
+                </div>
+
+            </div>
+
+        </main>
+    `;
+}
+
+function showMedicines() {
+    document.getElementById("app").innerHTML = `
+        <main class="game-screen">
+
+            <div class="game-header">
+                <button class="back-button" onclick="showPatientDashboard()">←</button>
+
+                <div>
+                    <div class="step-label">MEDICINE</div>
+                    <h1>Medicine Reminders</h1>
+                </div>
+            </div>
+
+            <div class="medicine-container">
+
+                <div class="medicine-card">
+                    <div class="medicine-icon">💊</div>
+
+                    <div class="medicine-info">
+                        <strong>Morning Medicine</strong>
+                        <p>After breakfast</p>
+                        <span>8:00 AM</span>
+                    </div>
+
+                    <button onclick="markMedicineTaken(this)">
+                        Take
+                    </button>
+                </div>
+
+                <div class="medicine-card">
+                    <div class="medicine-icon">💊</div>
+
+                    <div class="medicine-info">
+                        <strong>Evening Medicine</strong>
+                        <p>After dinner</p>
+                        <span>8:00 PM</span>
+                    </div>
+
+                    <button onclick="markMedicineTaken(this)">
+                        Take
+                    </button>
+                </div>
+
+                <p id="medicine-message" class="game-message"></p>
+
+            </div>
+
+        </main>
+    `;
+}
+
+function markMedicineTaken(button) {
+    button.innerText = "Taken ✓";
+    button.disabled = true;
+
+    button.parentElement.classList.add("medicine-taken");
+
+    document.getElementById("medicine-message").innerText =
+        "Medicine marked as taken. 🌸";
+}
+
+function showMedicines() {
+    document.getElementById("app").innerHTML = `
+        <main class="game-screen">
+
+            <div class="game-header">
+                <button class="back-button" onclick="showPatientDashboard()">←</button>
+
+                <div>
+                    <div class="step-label">MEDICINE</div>
+                    <h1>Medicine Reminders</h1>
+                </div>
+            </div>
+
+            <div class="medicine-container">
+
+                <div class="medicine-card">
+                    <div class="medicine-icon">💊</div>
+
+                    <div class="medicine-info">
+                        <strong>Morning Medicine</strong>
+                        <p>After breakfast</p>
+                        <span>10:00 AM</span>
+                    </div>
+
+                    <button onclick="markMedicineTaken(this)">
+                        Take
+                    </button>
+                </div>
+
+                <div class="medicine-card">
+                    <div class="medicine-icon">💊</div>
+
+                    <div class="medicine-info">
+                        <strong>Evening Medicine</strong>
+                        <p>After dinner</p>
+                        <span>8:00 PM</span>
+                    </div>
+
+                    <button onclick="markMedicineTaken(this)">
+                        Take
+                    </button>
+                </div>
+
+                <p id="medicine-message" class="game-message"></p>
+
+            </div>
+
+        </main>
+    `;
+}
+
+function markMedicineTaken(button) {
+    button.innerText = "Taken ✓";
+    button.disabled = true;
+
+    button.parentElement.classList.add("medicine-taken");
+
+    document.getElementById("medicine-message").innerText =
+        "Medicine marked as taken. 🌸";
+}
+
+function showSettings() {
+    document.getElementById("app").innerHTML = `
+        <main class="game-screen">
+
+            <div class="game-header">
+                <button class="back-button" onclick="showPatientDashboard()">←</button>
+
+                <div>
+                    <div class="step-label">SETTINGS</div>
+                    <h1>Settings</h1>
+                </div>
+            </div>
+
+            <div class="settings-container">
+
+                <div class="settings-card">
+                    <span>🌐</span>
+                    <div>
+                        <strong>Language</strong>
+                        <p>English</p>
+                    </div>
+                </div>
+
+                <div class="settings-card">
+                    <span>💬</span>
+                    <div>
+                        <strong>Communication</strong>
+                        <p>Voice + Text</p>
+                    </div>
+                </div>
+
+                <div class="settings-card">
+                    <span>🔔</span>
+                    <div>
+                        <strong>Notifications</strong>
+                        <p>Medicine and routine reminders</p>
+                    </div>
+
+                    <label class="switch">
+                        <input type="checkbox" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+            </div>
+
+        </main>
+    `;
 }
