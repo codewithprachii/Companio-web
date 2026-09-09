@@ -1,6 +1,72 @@
 const app = document.getElementById("app");
 const loadingPercentage = document.getElementById("loading-percentage");
 
+// ---------------- API LAYER ----------------
+
+const API = "/api";
+
+async function api(path, opts = {}) {
+    const res = await fetch(API + path, {
+        headers: { "Content-Type": "application/json" },
+        ...opts,
+    });
+    const body = await res.text();
+    let json = null;
+    try { json = body ? JSON.parse(body) : null; } catch (e) { json = body; }
+    if (!res.ok) {
+        const detail = json && json.detail
+            ? (typeof json.detail === "string" ? json.detail : JSON.stringify(json.detail))
+            : "Error " + res.status;
+        throw new Error(detail);
+    }
+    return json;
+}
+
+function esc(s) {
+    return String(s === undefined || s === null ? "" : s).replace(/[&<>"']/g, c => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+    }[c]));
+}
+
+function fmtReminderTime(iso) {
+    if (!iso) return "";
+    const d = new Date(iso);
+    let h = d.getHours();
+    const m = String(d.getMinutes()).padStart(2, "0");
+    const period = h >= 12 ? "PM" : "AM";
+    h = h % 12 || 12;
+    return `${h}:${m} ${period}`;
+}
+
+// ---------------- APP STATE ----------------
+
+const state = {
+    setupFor: "",
+    name: "",
+    age: "",
+    caregiverName: "",
+    caregiverRelationship: "",
+    patientId: null,
+    sessionId: null,
+    questions: [],
+    assessment: null,
+};
+
+const savedState = JSON.parse(localStorage.getItem("companio-state") || "{}");
+if (savedState.patientId) {
+    state.patientId = savedState.patientId;
+    state.name = savedState.name || "";
+    state.age = savedState.age || "";
+}
+
+function persistState() {
+    localStorage.setItem("companio-state", JSON.stringify({
+        patientId: state.patientId,
+        name: state.name,
+        age: state.age,
+    }));
+}
+
 let progress = 0;
 
 const loadingTimer = setInterval(() => {
@@ -39,9 +105,9 @@ function showIntroStayConnected() {
             </p>
 
             <div class="onboarding-dots">
-                <span></span>
-                <span></span>
                 <span class="active"></span>
+                <span></span>
+                <span></span>
                 <span></span>
             </div>
 
@@ -103,9 +169,9 @@ function showIntroRememberEngage() {
             </p>
 
             <div class="onboarding-dots">
+                <span></span>
+                <span></span>
                 <span class="active"></span>
-                <span></span>
-                <span></span>
                 <span></span>
             </div>
 
@@ -182,7 +248,7 @@ function showLanguageScreen() {
                         <span>Assamese</span>
                     </button>
 
-                    <button onclick="selectLanguage('kha')">
+                    <button onclick="selectLanguage('bn')">
                         বাংলা
                         <span>Bengali</span>
                     </button>
@@ -514,6 +580,8 @@ function savePatientInfo() {
 
     patientName = nameInput.value.trim();
     patientAge = ageInput.value.trim();
+    state.name = patientName;
+    state.age = patientAge;
 
     if (patientName === "" || patientAge === "") {
         alert("Please enter the patient's name and age.");
@@ -569,12 +637,19 @@ function showCaregiverInfo() {
             </div>
 
             <button class="primary-button form-next"
-                    onclick="showEmergencyContact()">
+                    onclick="saveCaregiverInfo()">
                 Next →
             </button>
 
         </main>
     `;
+}
+
+
+function saveCaregiverInfo() {
+    state.caregiverName = document.getElementById("caregiver-name").value.trim();
+    state.caregiverRelationship = document.getElementById("relationship").value.trim();
+    showEmergencyContact();
 }
 
 
@@ -619,7 +694,7 @@ function showEmergencyContact() {
             </div>
 
             <button class="primary-button form-next"
-                    onclick="showQuestionnaire()">
+                    onclick="continueToScreening()">
                 Continue to Support Needs
             </button>
 
@@ -636,39 +711,65 @@ function goBackFromPhoto() {
 }
 
 
-const questions = [
-    "Do they have difficulty remembering recent events?",
-    "Do they repeat the same questions or stories?",
-    "Do they forget names of familiar people?",
-    "Do they have difficulty recognising familiar faces?",
-    "Do they forget appointments or important events?",
-    "Do they have difficulty finding the right words?",
-    "Do they become confused about where they are?",
-    "Do they need reminders for daily activities?",
-    "Do they have difficulty managing medicines?",
-    "Do they become anxious or frustrated when confused?",
-    "Do they have difficulty following conversations?",
-    "Do they have difficulty completing familiar tasks?",
-    "Do they forget where everyday objects are kept?",
-    "Do they have difficulty remembering instructions?",
-    "Do they have difficulty following multi-step instructions?"
-];
+async function continueToScreening() {
+    try {
+        if (!state.patientId) {
+            const payload = {
+                name: state.name,
+                age: parseInt(state.age, 10),
+                caregiver_name: state.caregiverName || null,
+                caregiver_phone: null,
+                caregiver_relationship: state.caregiverRelationship || null,
+            };
+            const p = await api("/api/patients/register", { method: "POST", body: JSON.stringify(payload) });
+            state.patientId = p.id;
+            persistState();
+        }
+        showQuestionnaire();
+    } catch (e) {
+        alert("Could not create the profile: " + e.message);
+    }
+}
+
 
 let currentQuestion = 0;
 let answers = [];
 
 
-function showQuestionnaire() {
+async function showQuestionnaire() {
     currentQuestion = 0;
     answers = [];
 
-    renderQuestion();
+    try {
+        if (!state.questions.length) {
+            state.questions = await api("/api/screenings/questions?type=frequency");
+        }
+        const s = await api("/api/screenings/start", {
+            method: "POST",
+            body: JSON.stringify({ patient_id: state.patientId }),
+        });
+        state.sessionId = s.id;
+        renderQuestion();
+    } catch (e) {
+        alert("Could not start the screening: " + e.message);
+        showEmergencyContact();
+    }
 }
 
 
+const FREQUENCY_VALUES = {
+    "Rarely": 4,
+    "Sometimes": 3,
+    "Frequently": 2,
+    "Very Frequently": 1,
+    "Not sure": 0
+};
+
+
 function renderQuestion() {
-    const question = questions[currentQuestion];
+    const question = state.questions[currentQuestion];
     const progress = currentQuestion + 1;
+    const total = state.questions.length;
 
     app.innerHTML = `
         <main class="questionnaire-screen">
@@ -682,13 +783,13 @@ function renderQuestion() {
 
                 <div class="question-count">
                     <span>${progress} answered</span>
-                    <span>15 questions</span>
+                    <span>${total} questions</span>
                 </div>
 
             </div>
 
             <div class="question-progress">
-                <div style="width: ${(progress / 15) * 100}%"></div>
+                <div style="width: ${(progress / total) * 100}%"></div>
             </div>
 
             <div class="question-card">
@@ -697,7 +798,15 @@ function renderQuestion() {
                     ${progress}.
                 </p>
 
-                <h1>${question}</h1>
+                <span class="domain-chip">
+                    ${esc(question.domain)}
+                </span>
+
+                <h1>${esc(question.question_text)}</h1>
+
+                <p class="question-instruction">
+                    ${esc(question.instruction || "Choose how often this happens.")}
+                </p>
 
                 <div class="answer-options">
 
@@ -730,86 +839,47 @@ function renderQuestion() {
 }
 
 
-function answerQuestion(answer) {
+async function answerQuestion(answer) {
+    const question = state.questions[currentQuestion];
+
     answers[currentQuestion] = answer;
 
-    if (currentQuestion < questions.length - 1) {
-        currentQuestion++;
-        renderQuestion();
-    } else {
-        generatePatientProfile();
-        showQuestionnaireFinal();
+    try {
+        await api(`/api/screenings/${state.sessionId}/respond`, {
+            method: "POST",
+            body: JSON.stringify({
+                question_id: question.id,
+                response_text: answer,
+                response_value:
+                    FREQUENCY_VALUES[answer] !== undefined
+                        ? FREQUENCY_VALUES[answer]
+                        : 2,
+                time_taken_seconds: 15,
+            }),
+        });
+
+        if (currentQuestion < state.questions.length - 1) {
+            currentQuestion++;
+            renderQuestion();
+        } else {
+            await completeScreening();
+        }
+    } catch (e) {
+        alert("Could not save your answer: " + e.message);
     }
 }
 
-function generatePatientProfile() {
-
-    const score = {
-        memory: 0,
-        recognition: 0,
-        communication: 0,
-        routine: 0,
-        medicine: 0,
-        emotional: 0,
-        tasks: 0
-    };
-
-    // Convert answers into scores
-    const answerScore = {
-        "Rarely": 0,
-        "Sometimes": 1,
-        "Frequently": 2,
-        "Very Frequently": 3,
-        "Not sure": 0
-    };
-
-    // Memory
-    [0, 1, 4, 12, 13].forEach(index => {
-        score.memory += answerScore[answers[index]] || 0;
-    });
-
-    // Recognising people / places
-    [2, 3, 6].forEach(index => {
-        score.recognition += answerScore[answers[index]] || 0;
-    });
-
-    // Communication
-    [5, 10].forEach(index => {
-        score.communication += answerScore[answers[index]] || 0;
-    });
-
-    // Daily routine
-    score.routine += answerScore[answers[7]] || 0;
-
-    // Medicines
-    score.medicine += answerScore[answers[8]] || 0;
-
-    // Emotional support
-    score.emotional += answerScore[answers[9]] || 0;
-
-    // Familiar / multi-step tasks
-    [11, 14].forEach(index => {
-        score.tasks += answerScore[answers[index]] || 0;
-    });
-
-
-    window.patientProfile = {
-        scores: score,
-
-        memorySupport: getSupportLevel(score.memory, 15),
-
-        recognitionSupport: getSupportLevel(score.recognition, 9),
-
-        communicationSupport: getSupportLevel(score.communication, 6),
-
-        routineSupport: getSupportLevel(score.routine, 3),
-
-        medicineSupport: getSupportLevel(score.medicine, 3),
-
-        emotionalSupport: getSupportLevel(score.emotional, 3),
-
-        taskSupport: getSupportLevel(score.tasks, 6)
-    };
+async function completeScreening() {
+    try {
+        const assessment = await api(`/api/screenings/${state.sessionId}/complete`, {
+            method: "POST",
+        });
+        state.assessment = assessment;
+        showScreeningResults();
+    } catch (e) {
+        alert("Could not generate the assessment: " + e.message);
+        showQuestionnaireFinal();
+    }
 }
 
 
@@ -896,6 +966,62 @@ function isFrequent(answer) {
 }
 
 
+function showScreeningResults() {
+    const a = state.assessment;
+    const riskClass = "r-" + (a.risk_category || "none").toLowerCase();
+    const observations = (a.key_observations || []).map(x => `<li>${esc(x)}</li>`).join("");
+    const steps = (a.suggested_next_steps || []).map(x => `<li>${esc(x)}</li>`).join("");
+
+    app.innerHTML = `
+        <main class="game-screen">
+
+            <div class="game-header">
+                <div>
+                    <div class="step-label">SCREENING COMPLETE</div>
+                    <h1>Your Results</h1>
+                </div>
+            </div>
+
+            <div class="results-container">
+
+                <div class="results-score-card">
+                    <div class="results-icon">🧠</div>
+                    <h2>Cognitive Score</h2>
+                    <p class="results-score">${a.cognitive_score} / ${a.max_score}</p>
+                    <span class="risk-pill ${riskClass}">
+                        ${esc((a.risk_category || "").toUpperCase())} RISK
+                    </span>
+                    <p class="results-note">
+                        Higher scores indicate fewer difficulties. This is a screening aid, not a diagnosis.
+                    </p>
+                </div>
+
+                <div class="results-card">
+                    <h2>Key Observations</h2>
+                    <ul>${observations || "<li>No significant concerns identified.</li>"}</ul>
+                </div>
+
+                <div class="results-card">
+                    <h2>Suggested Next Steps</h2>
+                    <ul>${steps || "<li>Continue your normal routine and routine screenings.</li>"}</ul>
+                </div>
+
+                <div class="results-card">
+                    <h2>Important</h2>
+                    <p>${esc(a.disclaimer)}</p>
+                </div>
+
+                <button class="primary-button" onclick="showQuestionnaireFinal()">
+                    Continue
+                </button>
+
+            </div>
+
+        </main>
+    `;
+}
+
+
 function goBackFromQuestionnaire() {
     if (currentQuestion > 0) {
         currentQuestion--;
@@ -933,7 +1059,7 @@ function showQuestionnaireFinal() {
                 <h1>Anything else you would like us to know?</h1>
 
                 <textarea
-                    placeholder="Optional — type or use voice..."
+                    placeholder="Optional — type anything else..."
                 ></textarea>
 
                 <button class="voice-input-button">
@@ -1366,7 +1492,41 @@ function convertTo12Hour(time) {
 }
 
 
-function saveRoutine() {
+function nextTimeISO(time) {
+    if (!time) return new Date().toISOString();
+    const hhmm = convertTo24Hour(time);
+    const today = new Date().toISOString().slice(0, 10);
+    return `${today}T${hhmm}:00`;
+}
+
+async function saveRoutine() {
+    if (!state.patientId) {
+        showPatientDashboard();
+        return;
+    }
+
+    try {
+        for (const activity of routineActivities) {
+            if (!activity.name || !activity.time) continue;
+            const type = /medic|pills|tablet|medication/i.test(activity.name)
+                ? "medication"
+                : "appointment";
+            await api("/api/reminders/", {
+                method: "POST",
+                body: JSON.stringify({
+                    patient_id: state.patientId,
+                    reminder_type: type,
+                    title: activity.name,
+                    description: `${activity.frequency} · ${activity.time}`,
+                    scheduled_at: nextTimeISO(activity.time),
+                }),
+            });
+        }
+    } catch (e) {
+        alert("Could not save your routine reminders: " + e.message);
+        return;
+    }
+
     showPatientDashboard();
 }  
 
@@ -1661,6 +1821,12 @@ function showPatientDashboard() {
                     ⚙
                     <span>Settings</span>
                 </button>
+            <div class="dashboard-header">
+                <p>Good Morning</p>
+                <h1>Hello, ${patientName} 👋</h1>
+                <p>Age: ${patientAge}</p>
+                <p>Let's see what's planned for today.</p>
+                <p><span id="risk-badge" class="risk-pill r-none">Loading…</span></p>
             </div>
 
         </main>
@@ -1968,6 +2134,30 @@ function showCaregiverDashboard() {
 
         </main>
     `;
+
+    loadDashboardProfile();
+}
+
+async function loadDashboardProfile() {
+    const badge = document.getElementById("risk-badge");
+    if (!badge || !state.patientId) return;
+
+    try {
+        const p = await api(`/api/patients/${state.patientId}`);
+        state.assessment = p.latest_assessment || state.assessment;
+
+        if (state.assessment) {
+            const r = (state.assessment.risk_category || "none").toLowerCase();
+            badge.textContent = `${(state.assessment.risk_category || "").toUpperCase()} RISK · ${state.assessment.cognitive_score}/${state.assessment.max_score}`;
+            badge.className = "risk-pill r-" + r;
+        } else {
+            badge.textContent = "No assessment yet";
+            badge.className = "risk-pill r-none";
+        }
+    } catch (e) {
+        badge.textContent = "Offline";
+        badge.className = "risk-pill r-none";
+    }
 }
 
 function showGames() {
@@ -3177,44 +3367,96 @@ function showProgress() {
                 </div>
             </div>
 
-            <div class="progress-container">
-
-                <div class="progress-card">
-                    <span>🧩</span>
-                    <div>
-                        <strong>Brain Activities</strong>
-                        <p>4 activities completed</p>
-                    </div>
-                </div>
-
-                <div class="progress-card">
-                    <span>💊</span>
-                    <div>
-                        <strong>Medicine Routine</strong>
-                        <p>All reminders followed today</p>
-                    </div>
-                </div>
-
-                <div class="progress-card">
-                    <span>🕐</span>
-                    <div>
-                        <strong>Daily Routine</strong>
-                        <p>3 of 4 activities completed</p>
-                    </div>
-                </div>
-
-                <div class="progress-card">
-                    <span>🌸</span>
-                    <div>
-                        <strong>Overall Progress</strong>
-                        <p>You're doing great today!</p>
-                    </div>
-                </div>
-
+            <div class="progress-container" id="progress-container">
+                <p class="game-message">Loading your progress…</p>
             </div>
 
         </main>
     `;
+
+    renderProgress();
+}
+
+async function renderProgress() {
+    const container = document.getElementById("progress-container");
+    if (!container) return;
+
+    try {
+        let a = state.assessment;
+        if (!a) {
+            const p = await api(`/api/patients/${state.patientId}`);
+            a = p.latest_assessment;
+            state.assessment = a;
+        }
+
+        if (!a) {
+            container.innerHTML = `
+                <div class="progress-card">
+                    <span>🌸</span>
+                    <div>
+                        <strong>No assessment yet</strong>
+                        <p>Complete the support questionnaire to see your results.</p>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+
+        const doms = a.domain_scores || {};
+        const bars = Object.keys(doms)
+            .filter(k => doms[k].max > 0)
+            .map(k => `
+                <div class="domain-row">
+                    <span class="domain-name">${esc(k.replace(/_/g, " "))}</span>
+                    <div class="domain-bar"><div style="width:${Math.min(100, Number(doms[k].percent) || 0)}%"></div></div>
+                    <span class="domain-pct">${Number(doms[k].percent || 0).toFixed(0)}%</span>
+                </div>
+            `).join("");
+
+        const observations = (a.key_observations || []).map(x => `<li>${esc(x)}</li>`).join("");
+        const steps = (a.suggested_next_steps || []).map(x => `<li>${esc(x)}</li>`).join("");
+        const riskClass = "r-" + (a.risk_category || "none").toLowerCase();
+
+        container.innerHTML = `
+            <div class="progress-card">
+                <span>🧠</span>
+                <div>
+                    <strong>Cognitive Score: ${a.cognitive_score} / ${a.max_score}</strong>
+                    <p><span class="risk-pill ${riskClass}">${esc((a.risk_category || "").toUpperCase())} RISK</span></p>
+                </div>
+            </div>
+
+            <div class="progress-card domain-focus">
+                <div>
+                    <strong>By Area</strong>
+                </div>
+            </div>
+            ${bars}
+
+            <div class="progress-card">
+                <div>
+                    <strong>Key Observations</strong>
+                </div>
+            </div>
+            <ul class="progress-list">${observations || "<li>No significant concerns identified.</li>"}</ul>
+
+            <div class="progress-card">
+                <div>
+                    <strong>Suggested Next Steps</strong>
+                </div>
+            </div>
+            <ul class="progress-list">${steps || "<li>Continue routine check-ins.</li>"}</ul>
+
+            <div class="progress-card">
+                <div>
+                    <strong>Important</strong>
+                    <p>${esc(a.disclaimer)}</p>
+                </div>
+            </div>
+        `;
+    } catch (e) {
+        container.innerHTML = `<p class="game-message wrong">${esc(e.message)}</p>`;
+    }
 }
 
 function showMemories() {
@@ -3358,52 +3600,48 @@ function showRoutine() {
                 </div>
             </div>
 
-            <div class="routine-full">
-
-                <div class="routine-full-item">
-                    <span>🌅</span>
-                    <div>
-                        <strong>Morning</strong>
-                        <p>Wake up, freshen up and have breakfast.</p>
-                    </div>
-                </div>
-
-                <div class="routine-full-item">
-                    <span>💊</span>
-                    <div>
-                        <strong>Medicine</strong>
-                        <p>Take your morning medicine.</p>
-                    </div>
-                </div>
-
-                <div class="routine-full-item">
-                    <span>🧩</span>
-                    <div>
-                        <strong>Brain Activity</strong>
-                        <p>Spend some time on a memory activity.</p>
-                    </div>
-                </div>
-
-                <div class="routine-full-item">
-                    <span>🍽️</span>
-                    <div>
-                        <strong>Lunch</strong>
-                        <p>Have your lunch and take some rest.</p>
-                    </div>
-                </div>
-
-                <div class="routine-full-item">
-                    <span>🌙</span>
-                    <div>
-                        <strong>Evening</strong>
-                        <p>Relax, talk to Companio or enjoy a familiar activity.</p>
-                    </div>
-                </div>
-
+            <div class="routine-full" id="routine-full">
+                <p class="game-message">Loading your routine…</p>
             </div>
 
         </main>
     `;
+
+    loadRoutine();
+}
+
+async function loadRoutine() {
+    const container = document.getElementById("routine-full");
+    if (!container) return;
+
+    try {
+        const reminders = await api(`/api/reminders/patient/${state.patientId}`);
+
+        if (!reminders.length) {
+            container.innerHTML = `
+                <div class="routine-full-item">
+                    <span>🌸</span>
+                    <div>
+                        <strong>No routine yet</strong>
+                        <p>Set up your daily routine to see it here.</p>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = reminders.map(r => `
+            <div class="routine-full-item">
+                <span>${r.reminder_type === "medication" ? "💊" : "⏰"}</span>
+                <div>
+                    <strong>${esc(r.title)}</strong>
+                    <p>${esc(r.description || "")} · ${fmtReminderTime(r.scheduled_at)}${r.is_completed ? " · Done ✓" : ""}</p>
+                </div>
+            </div>
+        `).join("");
+    } catch (e) {
+        container.innerHTML = `<p class="game-message wrong">${esc(e.message)}</p>`;
+    }
 }
 
 function showMedicines() {
@@ -3419,113 +3657,68 @@ function showMedicines() {
                 </div>
             </div>
 
-            <div class="medicine-container">
-
-                <div class="medicine-card">
-                    <div class="medicine-icon">💊</div>
-
-                    <div class="medicine-info">
-                        <strong>Morning Medicine</strong>
-                        <p>After breakfast</p>
-                        <span>8:00 AM</span>
-                    </div>
-
-                    <button onclick="markMedicineTaken(this)">
-                        Take
-                    </button>
-                </div>
-
-                <div class="medicine-card">
-                    <div class="medicine-icon">💊</div>
-
-                    <div class="medicine-info">
-                        <strong>Evening Medicine</strong>
-                        <p>After dinner</p>
-                        <span>8:00 PM</span>
-                    </div>
-
-                    <button onclick="markMedicineTaken(this)">
-                        Take
-                    </button>
-                </div>
-
-                <p id="medicine-message" class="game-message"></p>
-
+            <div class="medicine-container" id="medicine-list">
+                <p class="game-message">Loading reminders…</p>
             </div>
 
         </main>
     `;
+
+    loadMedicines();
 }
 
-function markMedicineTaken(button) {
-    button.innerText = "Taken ✓";
-    button.disabled = true;
+async function loadMedicines() {
+    const list = document.getElementById("medicine-list");
+    if (!list) return;
 
-    button.parentElement.classList.add("medicine-taken");
+    try {
+        const reminders = await api(`/api/reminders/patient/${state.patientId}`);
+        const meds = reminders.filter(r => r.reminder_type === "medication");
 
-    document.getElementById("medicine-message").innerText =
-        "Medicine marked as taken. 🌸";
-}
-
-function showMedicines() {
-    document.getElementById("app").innerHTML = `
-        <main class="game-screen">
-
-            <div class="game-header">
-                <button class="back-button" onclick="showPatientDashboard()">←</button>
-
-                <div>
-                    <div class="step-label">MEDICINE</div>
-                    <h1>Medicine Reminders</h1>
-                </div>
-            </div>
-
-            <div class="medicine-container">
-
+        if (!meds.length) {
+            list.innerHTML = `
                 <div class="medicine-card">
                     <div class="medicine-icon">💊</div>
-
                     <div class="medicine-info">
-                        <strong>Morning Medicine</strong>
-                        <p>After breakfast</p>
-                        <span>10:00 AM</span>
+                        <strong>No medicine reminders</strong>
+                        <p>Save a routine with medicines to see them here.</p>
                     </div>
-
-                    <button onclick="markMedicineTaken(this)">
-                        Take
-                    </button>
                 </div>
+            `;
+            return;
+        }
 
-                <div class="medicine-card">
-                    <div class="medicine-icon">💊</div>
-
-                    <div class="medicine-info">
-                        <strong>Evening Medicine</strong>
-                        <p>After dinner</p>
-                        <span>8:00 PM</span>
-                    </div>
-
-                    <button onclick="markMedicineTaken(this)">
-                        Take
-                    </button>
+        list.innerHTML = meds.map(r => `
+            <div class="medicine-card ${r.is_completed ? "medicine-taken" : ""}">
+                <div class="medicine-icon">💊</div>
+                <div class="medicine-info">
+                    <strong>${esc(r.title)}</strong>
+                    <p>${esc(r.description || "")}</p>
+                    <span>${fmtReminderTime(r.scheduled_at)}</span>
                 </div>
-
-                <p id="medicine-message" class="game-message"></p>
-
+                ${r.is_completed
+                    ? `<button disabled>Taken ✓</button>`
+                    : `<button onclick="markMedicineTaken(${r.id}, this)">Take</button>`}
             </div>
-
-        </main>
-    `;
+        `).join("") + `<p id="medicine-message" class="game-message"></p>`;
+    } catch (e) {
+        list.innerHTML = `<p class="game-message wrong">${esc(e.message)}</p>`;
+    }
 }
 
-function markMedicineTaken(button) {
-    button.innerText = "Taken ✓";
-    button.disabled = true;
+async function markMedicineTaken(reminderId, button) {
+    try {
+        await api(`/api/reminders/${reminderId}/complete`, { method: "PUT" });
+        button.innerText = "Taken ✓";
+        button.disabled = true;
+        button.parentElement.classList.add("medicine-taken");
 
-    button.parentElement.classList.add("medicine-taken");
-
-    document.getElementById("medicine-message").innerText =
-        "Medicine marked as taken. 🌸";
+        const msg = document.getElementById("medicine-message");
+        if (msg) msg.innerText = "Medicine marked as taken. 🌸";
+    } catch (e) {
+        const msg = document.getElementById("medicine-message");
+        if (msg) msg.innerText = e.message;
+    }
 }
 
 function showSettings() {
@@ -4326,4 +4519,63 @@ function completeReadRespondLevel() {
 function nextReadRespondLevel() {
     readRespondLevel++;
     showReadRespondIntro();
+}
+
+function showAccessChoice() {
+    document.getElementById("app").innerHTML = `
+        <main class="form-screen access-choice-screen">
+
+            <div class="screen-header">
+                <div>
+                    <div class="step-label">SETUP COMPLETE</div>
+                    <h1>Who will be using Companio?</h1>
+                </div>
+            </div>
+
+            <p class="setup-intro-description">
+                Choose how you would like to use Companio.
+            </p>
+
+            <div class="access-choice-card patient-access"
+                 onclick="openPatientAccess()">
+
+                <div class="access-icon">👤</div>
+
+                <div>
+                    <h2>Patient</h2>
+                    <p>
+                        Play activities, manage your routine,
+                        view memories and use your daily companion.
+                    </p>
+                </div>
+
+                <span class="access-arrow">→</span>
+            </div>
+
+            <div class="access-choice-card caregiver-access"
+                 onclick="openCaregiverAccess()">
+
+                <div class="access-icon">👥</div>
+
+                <div>
+                    <h2>Caregiver</h2>
+                    <p>
+                        View activities, progress, routine,
+                        medicines and updates.
+                    </p>
+                </div>
+
+                <span class="access-arrow">→</span>
+            </div>
+
+        </main>
+    `;
+}
+
+function openPatientAccess() {
+    showPatientDashboard();
+}
+
+function openCaregiverAccess() {
+    showCaregiverDashboard();
 }
