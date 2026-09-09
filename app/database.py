@@ -62,6 +62,8 @@ engine = create_async_engine(
     echo=settings.debug,
     future=True,
     connect_args=_build_connect_args(_raw_url),
+    pool_pre_ping=True,
+    pool_recycle=60,
 )
 
 SessionLocal = async_sessionmaker(
