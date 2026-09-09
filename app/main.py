@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -10,7 +11,12 @@ from fastapi.staticfiles import StaticFiles
 from app.config import settings
 
 logger = logging.getLogger("companio.startup")
-from app.database import Base, engine, SessionLocal
+from app.database import (
+    Base,
+    engine,
+    SessionLocal,
+    database_is_configured,
+)
 from app import models  # noqa: F401 - register models
 from app.routers import (
     patients,
@@ -30,17 +36,30 @@ async def init_db():
         await conn.run_sync(Base.metadata.create_all)
 
 
-async def seed_db():
-    async with SessionLocal() as session:
-        await seed.seed(session)
-        await seed.seed_frequency_bank(session)
+async def _init_db_bounded():
+    async def _run():
+        await init_db()
+        async with SessionLocal() as session:
+            await seed.seed(session)
+            await seed.seed_frequency_bank(session)
+
+    await asyncio.wait_for(_run(), timeout=25)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    if not database_is_configured():
+        logger.warning(
+            "No remote database configured; skipping initialization and seed. "
+            "Database-backed endpoints will error until DATABASE_URL is set."
+        )
+        yield
+        return
+
     try:
-        await init_db()
-        await seed_db()
+        await _init_db_bounded()
+    except asyncio.TimeoutError:
+        logger.exception("Database initialization timed out.")
     except Exception:
         logger.exception(
             "Database initialization/seed failed. The app will keep serving, "
