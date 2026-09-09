@@ -67,6 +67,32 @@ function persistState() {
     }));
 }
 
+// ---------------- GAME RESULTS ----------------
+
+const gameResults = (() => {
+    try {
+        return JSON.parse(localStorage.getItem("companio-game-results") || "null") || {};
+    } catch (e) {
+        return {};
+    }
+})();
+
+function persistGameResults() {
+    localStorage.setItem("companio-game-results", JSON.stringify(gameResults));
+}
+
+function recordGameResult(gameName, score, level) {
+    gameResults[gameName] = {
+        score: score,
+        level: level,
+        completedAt: new Date().toLocaleTimeString([], {
+            hour: "numeric",
+            minute: "2-digit",
+        }),
+    };
+    persistGameResults();
+}
+
 let progress = 0;
 
 const loadingTimer = setInterval(() => {
@@ -850,7 +876,10 @@ async function answerQuestion(answer) {
             body: JSON.stringify({
                 question_id: question.id,
                 response_text: answer,
-                response_value: FREQUENCY_VALUES[answer] !== undefined ? FREQUENCY_VALUES[answer] : 2,
+                response_value:
+                    FREQUENCY_VALUES[answer] !== undefined
+                        ? FREQUENCY_VALUES[answer]
+                        : 2,
                 time_taken_seconds: 15,
             }),
         });
@@ -866,7 +895,6 @@ async function answerQuestion(answer) {
     }
 }
 
-
 async function completeScreening() {
     try {
         const assessment = await api(`/api/screenings/${state.sessionId}/complete`, {
@@ -878,6 +906,89 @@ async function completeScreening() {
         alert("Could not generate the assessment: " + e.message);
         showQuestionnaireFinal();
     }
+}
+
+
+function getSupportLevel(score, maximum) {
+
+    const percentage = (score / maximum) * 100;
+
+    if (percentage >= 67) {
+        return "High";
+    }
+
+    if (percentage >= 34) {
+        return "Moderate";
+    }
+
+    return "Low";
+}
+
+function generatePatientProfile() {
+    const profile = {
+        memorySupport: 0,
+        recognitionSupport: 0,
+        communicationSupport: 0,
+        routineSupport: 0,
+        medicineSupport: 0,
+        emotionalSupport: 0,
+        taskSupport: 0
+    };
+
+    // Memory & remembering
+    [0, 1, 4, 12, 13].forEach(index => {
+        if (isFrequent(answers[index])) {
+            profile.memorySupport++;
+        }
+    });
+
+    // Recognising people / places
+    [2, 3, 6].forEach(index => {
+        if (isFrequent(answers[index])) {
+            profile.recognitionSupport++;
+        }
+    });
+
+    // Communication
+    [5, 10].forEach(index => {
+        if (isFrequent(answers[index])) {
+            profile.communicationSupport++;
+        }
+    });
+
+    // Daily routine
+    [7].forEach(index => {
+        if (isFrequent(answers[index])) {
+            profile.routineSupport++;
+        }
+    });
+
+    // Medicines
+    [8].forEach(index => {
+        if (isFrequent(answers[index])) {
+            profile.medicineSupport++;
+        }
+    });
+
+    // Emotional support
+    [9].forEach(index => {
+        if (isFrequent(answers[index])) {
+            profile.emotionalSupport++;
+        }
+    });
+
+    // Familiar / multi-step tasks
+    [11, 14].forEach(index => {
+        if (isFrequent(answers[index])) {
+            profile.taskSupport++;
+        }
+    });
+
+    window.patientProfile = profile;
+}
+
+function isFrequent(answer) {
+    return answer === "Frequently" || answer === "Very Frequently";
 }
 
 
@@ -974,7 +1085,7 @@ function showQuestionnaireFinal() {
                 <h1>Anything else you would like us to know?</h1>
 
                 <textarea
-                    placeholder="Optional — type or use voice..."
+                    placeholder="Optional — type anything else..."
                 ></textarea>
 
                 <button class="voice-input-button">
@@ -1446,9 +1557,296 @@ async function saveRoutine() {
 }  
 
 function showPatientDashboard() {
-    app.innerHTML = `
-        <main class="dashboard-screen">
+    const profile = window.patientProfile || {
+        memorySupport: "Low",
+        recognitionSupport: "Low",
+        communicationSupport: "Low",
+        routineSupport: "Low",
+        medicineSupport: "Low",
+        emotionalSupport: "Low",
+        taskSupport: "Low"
+    };
 
+    document.getElementById("app").innerHTML = `
+        <main class="new-dashboard">
+
+            <!-- HEADER -->
+            <section class="dashboard-welcome">
+                <div>
+                    <p class="dashboard-eyebrow">YOUR DAILY COMPANION</p>
+                    <h1>Hello, ${patientName} 👋</h1>
+                    <p>Let's see what's planned for today.</p>
+                </div>
+
+                <div class="profile-circle">
+                    👤
+                </div>
+            </section>
+
+
+            <!-- TODAY'S OVERVIEW -->
+            <section class="overview-grid">
+
+                <div class="overview-card cognitive-card">
+                    <div class="overview-icon">🧠</div>
+                    <div>
+                        <p>Cognitive Activity</p>
+                        <h2>0 activities</h2>
+                        <span>Keep your mind active today</span>
+                    </div>
+                </div>
+
+                <div class="overview-card checkin-card">
+                    <div class="overview-icon">💚</div>
+                    <div>
+                        <p>Today's Check-in</p>
+                        <h2>Not completed</h2>
+                        <span>How are you feeling today?</span>
+                    </div>
+                </div>
+
+            </section>
+
+
+            <!-- TODAY'S ROUTINE -->
+            <section class="colour-card routine-dashboard-card">
+
+                <div class="section-title-row">
+                    <div>
+                        <p class="dashboard-eyebrow">TODAY</p>
+                        <h2>Daily Routine</h2>
+                    </div>
+
+                    <button class="small-action-button"
+                            onclick="showRoutine()">
+                        View All
+                    </button>
+                </div>
+
+                <div class="dashboard-routine-item active-routine">
+                    <div class="routine-time">9:00 AM</div>
+
+                    <div class="routine-dot">🍳</div>
+
+                    <div class="routine-details">
+                        <strong>Breakfast</strong>
+                        <span>Start your day with breakfast</span>
+                    </div>
+
+                    <span class="routine-status">Next</span>
+                </div>
+
+                <div class="dashboard-routine-item">
+                    <div class="routine-time">10:00 AM</div>
+
+                    <div class="routine-dot">🚶</div>
+
+                    <div class="routine-details">
+                        <strong>Morning Walk</strong>
+                        <span>A little movement for the day</span>
+                    </div>
+                </div>
+
+                <div class="dashboard-routine-item">
+                    <div class="routine-time">1:00 PM</div>
+
+                    <div class="routine-dot">🍲</div>
+
+                    <div class="routine-details">
+                        <strong>Lunch</strong>
+                        <span>Time for your afternoon meal</span>
+                    </div>
+                </div>
+
+            </section>
+
+
+            <!-- WHAT DO I DO NOW -->
+            <section class="next-activity-card">
+
+                <div class="next-activity-icon">✨</div>
+
+                <div>
+                    <p class="dashboard-eyebrow">YOUR NEXT ACTIVITY</p>
+                    <h2>What do I do now?</h2>
+                    <p>Companio can help you decide what to do next.</p>
+                </div>
+
+                <button class="primary-button"
+                        onclick="showNextActivity()">
+                    Show Me
+                </button>
+
+            </section>
+
+
+            <!-- MEDICINES + HYDRATION -->
+            <section class="dashboard-two-column">
+
+                <div class="colour-card information-card">
+                    <div class="card-icon">💊</div>
+
+                    <p class="dashboard-eyebrow">MEDICINES</p>
+                    <h2>Today's Medicines</h2>
+
+                    <div class="progress-number">
+                        0 / 2
+                    </div>
+
+                    <p>reminders acknowledged</p>
+
+                    <button class="small-action-button"
+                            onclick="showMedicines()">
+                        View Medicines
+                    </button>
+                </div>
+
+
+                <div class="colour-card information-card">
+                    <div class="card-icon">💧</div>
+
+                    <p class="dashboard-eyebrow">HYDRATION</p>
+                    <h2>Water Today</h2>
+
+                    <div class="hydration-progress">
+                        <div class="hydration-fill"></div>
+                    </div>
+
+                    <p id="hydration-count">0 / 5 glasses</p>
+
+                    <button class="small-action-button" onclick="logWater()">
+                        Log a Glass
+                    </button>
+                </div>
+
+            </section>
+
+
+            <!-- BRAIN ACTIVITIES -->
+            <section class="colour-card">
+
+                <div class="section-title-row">
+                    <div>
+                        <p class="dashboard-eyebrow">KEEP YOUR MIND ACTIVE</p>
+                        <h2>Brain Activities</h2>
+                    </div>
+
+                    <button class="small-action-button"
+                            onclick="showGames()">
+                        See All
+                    </button>
+                </div>
+
+                <div class="activity-mini-grid">
+
+                    <button class="activity-mini-card"
+                            onclick="startMemoryGame()">
+                        <span>🧩</span>
+                        <strong>Memory Match</strong>
+                        <small>Exercise memory</small>
+                    </button>
+
+                    <button class="activity-mini-card"
+                            onclick="startNumberGame()">
+                        <span>🔢</span>
+                        <strong>Remember the Sequence</strong>
+                        <small>Train attention</small>
+                    </button>
+
+                    <button class="activity-mini-card"
+                            onclick="startSpotDifference()">
+                        <span>👀</span>
+                        <strong>Spot the Difference</strong>
+                        <small>Improve attention</small>
+                    </button>
+
+                    <button class="activity-mini-card"
+                            onclick="startWhatDidYouSee()">
+                        <span>🧠</span>
+                        <strong>What Did You See?</strong>
+                        <small>Remember a scene</small>
+                    </button>
+
+                </div>
+
+            </section>
+
+
+            <!-- PERSONALIZED SUPPORT -->
+            <section class="colour-card support-profile-card">
+
+                <div class="section-title-row">
+                    <div>
+                        <p class="dashboard-eyebrow">PERSONALISED FOR YOU</p>
+                        <h2>Your Support Profile</h2>
+                    </div>
+
+                    <span class="personalised-badge">✨ Personalised</span>
+                </div>
+
+                <div class="support-grid">
+
+                    <div>
+                        <span>🧠</span>
+                        <strong>Memory</strong>
+                        <small>${profile.memorySupport} support</small>
+                    </div>
+
+                    <div>
+                        <span>👥</span>
+                        <strong>Recognition</strong>
+                        <small>${profile.recognitionSupport} support</small>
+                    </div>
+
+                    <div>
+                        <span>💬</span>
+                        <strong>Communication</strong>
+                        <small>${profile.communicationSupport} support</small>
+                    </div>
+
+                    <div>
+                        <span>⏰</span>
+                        <strong>Routine</strong>
+                        <small>${profile.routineSupport} support</small>
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- QUICK ACTIONS -->
+            <section class="quick-actions">
+
+                <button onclick="showTalkToMe()">
+                    💬
+                    <span>Talk to Me</span>
+                </button>
+
+                <button onclick="showMemories()">
+                    ❤️
+                    <span>My Memories</span>
+                </button>
+
+            </section>
+
+
+            <!-- BOTTOM NAV -->
+            <div class="bottom-nav">
+                <button onclick="showPatientDashboard()">
+                    ⌂
+                    <span>Home</span>
+                </button>
+
+                <button onclick="showGames()">
+                    ♡
+                    <span>Activities</span>
+                </button>
+
+                <button onclick="showSettings()">
+                    ⚙
+                    <span>Settings</span>
+                </button>
             <div class="dashboard-header">
                 <p>Good Morning</p>
                 <h1>Hello, ${patientName} 👋</h1>
@@ -1457,58 +1855,308 @@ function showPatientDashboard() {
                 <p><span id="risk-badge" class="risk-pill r-none">Loading…</span></p>
             </div>
 
-            <section class="dashboard-card">
-                <h2>Today's Routine</h2>
-                <p>You're doing great. Here's what comes next.</p>
+        </main>
+    `;
+}
 
-                <div class="routine-item">
-                    <span>☀️</span>
+let waterCount = 0;
+
+function logWater() {
+    if (waterCount < 5) {
+        waterCount++;
+    }
+
+    const countElement = document.getElementById("hydration-count");
+    const fillElement = document.querySelector(".hydration-fill");
+
+    if (countElement) {
+        countElement.textContent = `${waterCount} / 5 glasses`;
+    }
+
+    if (fillElement) {
+        fillElement.style.width = `${(waterCount / 5) * 100}%`;
+    }
+}
+
+function showCaregiverDashboard() {
+    document.getElementById("app").innerHTML = `
+        <main class="caregiver-dashboard">
+
+            <!-- HEADER -->
+            <section class="caregiver-welcome">
+                <div>
+                    <p class="dashboard-eyebrow">COMPANIO CARE</p>
+                    <h1>Hello, Caregiver 👋</h1>
+                    <p>Here's how ${patientName || "your loved one"} is doing today.</p>
+                </div>
+
+                <div class="profile-circle">👤</div>
+            </section>
+
+            <!-- PATIENT STATUS -->
+            <section class="patient-status-card">
+                <div class="patient-avatar">👩</div>
+
+                <div class="patient-status-info">
+                    <p class="dashboard-eyebrow">PATIENT</p>
+                    <h2>${patientName || "Patient"}</h2>
+                    <p>Age: ${patientAge || "--"}</p>
+                    <span class="online-status">● Active today</span>
+                </div>
+
+                <div class="patient-id">
+                    <small>Patient ID</small>
+                    <strong>CP-48291</strong>
+                </div>
+            </section>
+
+            <!-- TODAY OVERVIEW -->
+            <section class="caregiver-overview-grid">
+
+                <div class="caregiver-stat-card cognitive-stat">
+                    <span>🧠</span>
+                    <small>COGNITIVE ACTIVITY</small>
+                    <strong>4</strong>
+                    <p>Games completed today</p>
+                </div>
+
+                <div class="caregiver-stat-card accuracy-stat">
+                    <span>🎯</span>
+                    <small>AVERAGE ACCURACY</small>
+                    <strong>78%</strong>
+                    <p>Today's performance</p>
+                </div>
+
+                <div class="caregiver-stat-card routine-stat">
+                    <span>⏰</span>
+                    <small>ROUTINE</small>
+                    <strong>80%</strong>
+                    <p>Completed today</p>
+                </div>
+
+                <div class="caregiver-stat-card checkin-stat">
+                    <span>💚</span>
+                    <small>CHECK-IN</small>
+                    <strong>Done</strong>
+                    <p>Today's check-in</p>
+                </div>
+
+            </section>
+
+            <!-- COGNITIVE ACTIVITY -->
+            <section class="caregiver-card">
+
+                <div class="section-title-row">
                     <div>
-                        <strong>Morning Routine</strong>
-                        <p>Start your day</p>
+                        <p class="dashboard-eyebrow">TODAY</p>
+                        <h2>Cognitive Activity</h2>
+                    </div>
+
+                    <button class="small-action-button"
+                            onclick="showProgress()">
+                        View Progress
+                    </button>
+                </div>
+
+                <div class="game-progress-list">
+
+                    <div class="game-progress-item">
+                        <div class="game-progress-icon">🧩</div>
+                        <div>
+                            <strong>Memory Match</strong>
+                            <span>Completed · 85% accuracy</span>
+                        </div>
+                        <b>85%</b>
+                    </div>
+
+                    <div class="game-progress-item">
+                        <div class="game-progress-icon">🔢</div>
+                        <div>
+                            <strong>Remember the Sequence</strong>
+                            <span>Level 2 completed</span>
+                        </div>
+                        <b>80%</b>
+                    </div>
+
+                    <div class="game-progress-item">
+                        <div class="game-progress-icon">👀</div>
+                        <div>
+                            <strong>Spot the Difference</strong>
+                            <span>Level 1 completed</span>
+                        </div>
+                        <b>70%</b>
+                    </div>
+
+                    <div class="game-progress-item">
+                        <div class="game-progress-icon">🧠</div>
+                        <div>
+                            <strong>What Did You See?</strong>
+                            <span>Level 2 completed</span>
+                        </div>
+                        <b>78%</b>
+                    </div>
+
+                </div>
+
+            </section>
+
+            <!-- DAILY ROUTINE -->
+            <section class="caregiver-card">
+
+                <div class="section-title-row">
+                    <div>
+                        <p class="dashboard-eyebrow">TODAY</p>
+                        <h2>Daily Routine</h2>
+                    </div>
+
+                    <button class="small-action-button"
+                            onclick="showRoutine()">
+                        View Routine
+                    </button>
+                </div>
+
+                <div class="caregiver-timeline">
+
+                    <div class="timeline-item completed">
+                        <div class="timeline-time">7:00 AM</div>
+                        <div class="timeline-dot">✓</div>
+                        <div>
+                            <strong>Wake-up</strong>
+                            <span>Completed</span>
+                        </div>
+                    </div>
+
+                    <div class="timeline-item upcoming">
+                        <div class="timeline-time">8:00 AM</div>
+                        <div class="timeline-dot">💊</div>
+                        <div>
+                            <strong>Medicine</strong>
+                            <span>Pending</span>
+                        </div>
+                    </div>
+
+                    <div class="timeline-item completed">
+                        <div class="timeline-time">9:00 AM</div>
+                        <div class="timeline-dot">🍳</div>
+                        <div>
+                            <strong>Breakfast</strong>
+                            <span>Completed</span>
+                        </div>
+                    </div>
+
+                    <div class="timeline-item completed">
+                        <div class="timeline-time">10:00 AM</div>
+                        <div class="timeline-dot">🚶</div>
+                        <div>
+                            <strong>Morning Walk</strong>
+                            <span>Completed</span>
+                        </div>
+                    </div>
+
+                </div>
+
+            </section>
+
+            <!-- MEDICINES + HYDRATION -->
+            <section class="caregiver-two-column">
+
+                <div class="caregiver-card mini-care-card">
+                    <div class="card-icon">💊</div>
+                    <p class="dashboard-eyebrow">MEDICINES</p>
+                    <h2>2 / 3</h2>
+                    <p>reminders acknowledged</p>
+
+                    <div class="mini-progress">
+                        <div style="width: 66%;"></div>
                     </div>
                 </div>
 
-                <div class="routine-item">
+                <div class="caregiver-card mini-care-card">
+                    <div class="card-icon">💧</div>
+                    <p class="dashboard-eyebrow">HYDRATION</p>
+                    <h2>3 / 5</h2>
+                    <p>water reminders completed</p>
+
+                    <div class="mini-progress">
+                        <div style="width: 60%;"></div>
+                    </div>
+                </div>
+
+            </section>
+
+            <!-- RECENT ACTIVITY -->
+            <section class="caregiver-card">
+
+                <div class="section-title-row">
+                    <div>
+                        <p class="dashboard-eyebrow">RECENT</p>
+                        <h2>Recent Activity</h2>
+                    </div>
+                </div>
+
+                <div class="recent-care-activity">
+                    <span>🧩</span>
+                    <div>
+                        <strong>Completed Memory Match</strong>
+                        <p>Score: 85% · 10 minutes ago</p>
+                    </div>
+                </div>
+
+                <div class="recent-care-activity">
                     <span>💊</span>
                     <div>
-                        <strong>Medicine Reminder</strong>
-                        <p>Next reminder at 10:00 AM</p>
-                        <button class="routine-view-button" onclick="showMedicines()">
-                            View Medicine Reminders
-                        </button>
+                        <strong>Medicine reminder acknowledged</strong>
+                        <p>Today · 8:02 AM</p>
                     </div>
                 </div>
+
+                <div class="recent-care-activity">
+                    <span>💬</span>
+                    <div>
+                        <strong>Talked with Companio</strong>
+                        <p>Asked about a family member</p>
+                    </div>
+                </div>
+
             </section>
 
-            <section class="dashboard-card">
-                <h2>What do I do now?</h2>
-            <button class="routine-view-button" onclick="showNextActivity()">
-                ✨ Show My Next Activity
-            </button>
+            <!-- INSIGHTS -->
+            <section class="care-insight-card">
+                <div class="insight-icon">✨</div>
 
-            <button class="routine-view-button" onclick="showRoutine()">
-                View My Full Routine
-            </button>
-
-
-                <div class="dashboard-actions">
-                    <button onclick="showGames()">🎮<br>Play a Game</button>
-                    <button onclick="showTalkToMe()">💬<br>Talk to Me</button>
-                    <button onclick="showProgress()">🧠<br>My Progress</button>
-                    <button onclick="showMemories()">❤️<br>My Memories</button>
+                <div>
+                    <p class="dashboard-eyebrow">COMPANIO INSIGHT</p>
+                    <h2>Steady progress today</h2>
+                    <p>
+                        ${patientName || "The patient"} has been engaging well
+                        with cognitive activities. Keep encouraging regular
+                        activities and routine.
+                    </p>
                 </div>
             </section>
 
-            <button class="help-button" onclick="showHelp()">
-                🆘 I Need Help
-            </button>
+            <!-- BOTTOM NAV -->
+            <div class="bottom-nav caregiver-nav">
+                <button onclick="showCaregiverDashboard()">
+                    ⌂
+                    <span>Overview</span>
+                </button>
 
-                <div class="bottom-nav">
-                    <button onclick="showPatientDashboard()">⌂<span>Home</span></button>
-                    <button onclick="showGames()">♡<span>Activities</span></button>
-                    <button onclick="showSettings()">⚙<span>Settings</span></button>
-                 </div>
+                <button onclick="showCaregiverProgress()">
+                    📈
+                    <span>Progress</span>
+                </button>
+
+                <button onclick="showCaregiverActivities()">
+                    🧠
+                    <span>Activities</span>
+                </button>
+
+                <button onclick="showCaregiverSettings()">
+                    ⚙
+                    <span>Settings</span>
+                </button>
+            </div>
 
         </main>
     `;
@@ -1538,6 +2186,260 @@ async function loadDashboardProfile() {
     }
 }
 
+function showCaregiverProgress() {
+    app.innerHTML = `
+        <main class="caregiver-screen">
+
+            <div class="screen-header">
+                <button class="back-button" onclick="showCaregiverDashboard()">←</button>
+                <div>
+                    <div class="step-label">COMPANIO CARE</div>
+                    <h1>Progress & Insights</h1>
+                </div>
+            </div>
+
+            <section class="caregiver-card">
+                <h2>Cognitive Activity</h2>
+                <p class="card-subtitle">This Week</p>
+
+                <div class="progress-chart">
+                    <div class="chart-bar"><span style="height:65%"></span><small>M</small></div>
+                    <div class="chart-bar"><span style="height:72%"></span><small>T</small></div>
+                    <div class="chart-bar"><span style="height:58%"></span><small>W</small></div>
+                    <div class="chart-bar"><span style="height:80%"></span><small>T</small></div>
+                    <div class="chart-bar"><span style="height:75%"></span><small>F</small></div>
+                    <div class="chart-bar"><span style="height:88%"></span><small>S</small></div>
+                    <div class="chart-bar"><span style="height:78%"></span><small>S</small></div>
+                </div>
+
+                <div class="progress-summary">
+                    <div>
+                        <strong>74%</strong>
+                        <span>Average accuracy</span>
+                    </div>
+
+                    <div>
+                        <strong>↑</strong>
+                        <span>Improving</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="progress-metrics">
+
+                <div class="metric-card">
+                    <strong>78%</strong>
+                    <span>Memory Games</span>
+                    <small>Average accuracy</small>
+                </div>
+
+                <div class="metric-card">
+                    <strong>71%</strong>
+                    <span>Attention</span>
+                    <small>Average accuracy</small>
+                </div>
+
+                <div class="metric-card">
+                    <strong>83%</strong>
+                    <span>Check-in Rate</span>
+                    <small>This week</small>
+                </div>
+
+                <div class="metric-card">
+                    <strong>76%</strong>
+                    <span>Routine</span>
+                    <small>Completion</small>
+                </div>
+
+            </section>
+
+            <section class="caregiver-card">
+                <h2>Recognition Performance</h2>
+
+                <div class="recognition-row">
+                    <span>Family members</span>
+                    <strong>85%</strong>
+                </div>
+
+                <div class="recognition-row">
+                    <span>Familiar places</span>
+                    <strong>72%</strong>
+                </div>
+
+                <div class="recognition-row">
+                    <span>Common objects</span>
+                    <strong>90%</strong>
+                </div>
+            </section>
+
+            <section class="care-insight-card">
+                <div class="insight-icon">💡</div>
+                <div>
+                    <h3>Steady progress this week</h3>
+                    <p>
+                        ${patientName || "The patient"} has been consistently engaging with
+                        activities. Keep up the great care!
+                    </p>
+                </div>
+            </section>
+
+        </main>
+    `;
+}
+
+function showCaregiverActivities() {
+    app.innerHTML = `
+        <main class="caregiver-screen">
+
+            <div class="screen-header">
+                <button class="back-button" onclick="showCaregiverDashboard()">←</button>
+                <div>
+                    <div class="step-label">COMPANIO CARE</div>
+                    <h1>Activities</h1>
+                </div>
+            </div>
+
+            <p class="games-intro">
+                Recent cognitive activities and performance.
+            </p>
+
+            <section class="caregiver-card">
+
+                <div class="game-progress-item">
+                    <div class="game-progress-icon">🧩</div>
+                    <div>
+                        <strong>Find the Pairs</strong>
+                        <span>
+                            ${gameResults["Find the Pairs"]
+                                ? `Level ${gameResults["Find the Pairs"].level} completed`
+                                : "Not played yet"}
+                        </span>
+                    </div>
+                    <b>
+                        ${gameResults["Find the Pairs"]
+                            ? `${gameResults["Find the Pairs"].score}`
+                            : "—"}
+                    </b>
+                </div>
+
+                <div class="game-progress-item">
+                    <div class="game-progress-icon">🔢</div>
+                    <div>
+                        <strong>Remember the Sequence</strong>
+                        <span>
+                            ${gameResults["Remember the Sequence"]
+                                ? `Level ${gameResults["Remember the Sequence"].level} completed`
+                                : "Not played yet"}
+                        </span>
+                    </div>
+                    <b>
+                        ${gameResults["Remember the Sequence"]
+                            ? `${gameResults["Remember the Sequence"].score}`
+                            : "—"}
+                    </b>
+                </div>
+
+                <div class="game-progress-item">
+                    <div class="game-progress-icon">👀</div>
+                    <div>
+                        <strong>Spot the Difference</strong>
+                        <span>
+                            ${gameResults["Spot the Difference"]
+                                ? `Level ${gameResults["Spot the Difference"].level} completed`
+                                : "Not played yet"}
+                        </span>
+                    </div>
+                    <b>
+                        ${gameResults["Spot the Difference"]
+                            ? `${gameResults["Spot the Difference"].score}`
+                            : "—"}
+                    </b>
+                </div>
+
+                <div class="game-progress-item">
+                    <div class="game-progress-icon">🖼️</div>
+                    <div>
+                        <strong>What Did You See?</strong>
+                        <span>
+                            ${gameResults["What Did You See?"]
+                                ? `Level ${gameResults["What Did You See?"].level} completed`
+                                : "Not played yet"}
+                        </span>
+                    </div>
+                    <b>
+                        ${gameResults["What Did You See?"]
+                            ? `${gameResults["What Did You See?"].score}`
+                            : "—"}
+                    </b>
+                </div>
+
+                <div class="game-progress-item">
+                    <div class="game-progress-icon">📖</div>
+                    <div>
+                        <strong>Read & Respond</strong>
+                        <span>
+                            ${gameResults["Read & Respond"]
+                                ? `Level ${gameResults["Read & Respond"].level} completed`
+                                : "Not played yet"}
+                        </span>
+                    </div>
+                    <b>
+                        ${gameResults["Read & Respond"]
+                            ? `${gameResults["Read & Respond"].score}`
+                            : "—"}
+                    </b>
+                </div>
+
+            </section>
+
+        </main>
+    `;
+}
+
+function showCaregiverSettings() {
+    app.innerHTML = `
+        <main class="caregiver-screen">
+
+            <div class="screen-header">
+                <button class="back-button" onclick="showCaregiverDashboard()">←</button>
+                <div>
+                    <div class="step-label">COMPANIO CARE</div>
+                    <h1>Settings</h1>
+                </div>
+            </div>
+
+            <section class="caregiver-card">
+
+                <div class="settings-item">
+                    <div>
+                        <strong>Patient Profile</strong>
+                        <span>View connected patient information</span>
+                    </div>
+                    <span>→</span>
+                </div>
+
+                <div class="settings-item">
+                    <div>
+                        <strong>Notifications</strong>
+                        <span>Manage activity and routine updates</span>
+                    </div>
+                    <span>→</span>
+                </div>
+
+                <div class="settings-item">
+                    <div>
+                        <strong>Privacy & Access</strong>
+                        <span>Manage caregiver access</span>
+                    </div>
+                    <span>→</span>
+                </div>
+
+            </section>
+
+        </main>
+    `;
+}
+
 function showGames() {
     document.getElementById("app").innerHTML = `
         <main class="form-screen">
@@ -1560,9 +2462,25 @@ function showGames() {
             </div>
 
             <div class="dashboard-card">
-                <h2>🔢 Number Sequence</h2>
+                <h2>🔢 Remember the Sequence</h2>
                 <p>Remember the numbers and choose them in the correct order.</p>
                 <button class="primary-button" onclick="startNumberGame()">
+                   Start Game
+                </button>
+            </div>
+
+            <div class="dashboard-card">
+                <h2>👀 Spot the Difference</h2>
+                <p>Look carefully and find the differences.</p>
+                <button class="primary-button" onclick="startSpotDifference()">
+                    Start Game
+                </button>
+            </div>
+
+            <div class="dashboard-card">
+                <h2>🧠 What Did You See?</h2>
+                <p>Look carefully, remember the scene, and answer the questions.</p>
+                <button class="primary-button" onclick="startWhatDidYouSee()">
                     Start Game
                 </button>
             </div>
@@ -1575,116 +2493,352 @@ function showGames() {
                 </button>
             </div>
 
+            <div class="dashboard-card">
+                <h2>📖 Read & Respond</h2>
+                <p>Read a short passage and answer questions about it.</p>
+                <button class="primary-button" onclick="startReadRespond()">
+                    Start Activity
+                </button>
+            </div>
+
         </main>
     `;
 }
 
+let memoryLevel = 1;
+let memoryScore = 0;
+let memoryCards = [];
+let memoryFlipped = [];
+let memoryMatched = 0;
+let memoryLocked = false;
+
+const memoryImages = [
+    { name: "fish", image: "/static/memory-images/fish_1.png" },
+    { name: "turtle", image: "/static/memory-images/turtle_1.png" },
+    { name: "dolphin", image: "/static/memory-images/dolphin_1.png" },
+    { name: "seahorse", image: "/static/memory-images/seahorse_1.png" },
+    { name: "crab", image: "/static/memory-images/crab_1.png" },
+    { name: "jellyfish", image: "/static/memory-images/jellyfish_1.png" },
+    { name: "starfish", image: "/static/memory-images/starfish_1.png" },
+    { name: "whale", image: "/static/memory-images/whale_1.png" }
+];
+
 function startMemoryGame() {
-    document.getElementById("app").innerHTML = `
-        <main class="game-screen">
+    memoryLevel = 1;
+    memoryScore = 0;
+    showMemoryLevelIntro();
+}
+
+function showMemoryLevelIntro() {
+
+    const pairCount = memoryLevel === 1 ? 4 :
+                      memoryLevel === 2 ? 6 : 8;
+
+    app.innerHTML = `
+        <main class="game-screen memory-game-screen">
 
             <div class="game-header">
-                <button class="back-button" onclick="showGames()">←</button>
+
+                <button class="back-button"
+                        onclick="showGames()">←</button>
 
                 <div>
-                    <div class="step-label">BRAIN ACTIVITY</div>
-                    <h1>Memory Match</h1>
+                    <div class="step-label">MEMORY ACTIVITY</div>
+                    <h1>Find the Pairs</h1>
                 </div>
+
+            </div>
+
+            <div class="memory-level-card">
+
+                <div class="memory-game-icon">
+                    🧠
+                </div>
+
+                <p class="memory-level-label">
+                    LEVEL ${memoryLevel}
+                </p>
+
+                <h2>Find the matching pairs</h2>
+
+                <p>
+                    Turn over the cards and find
+                    two matching pictures.
+                </p>
+
+                <div class="memory-reward">
+                    ⭐ ${memoryScore} points
+                </div>
+
+                <p class="memory-difficulty">
+                    ${pairCount} matching pairs
+                </p>
+
+                <button class="primary-button"
+                        onclick="startMemoryRound()">
+                    Start Level ${memoryLevel}
+                </button>
+
+            </div>
+
+        </main>
+    `;
+}
+
+function startMemoryRound() {
+
+    const pairCount = memoryLevel === 1 ? 4 :
+                      memoryLevel === 2 ? 6 : 8;
+
+    memoryCards = memoryImages
+        .slice(0, pairCount)
+        .flatMap(item => [
+            {
+                name: item.name,
+                image: item.image
+            },
+            {
+                name: item.name,
+                image: item.image
+            }
+        ]);
+
+    memoryCards.sort(() => Math.random() - 0.5);
+
+    memoryFlipped = [];
+    memoryMatched = 0;
+    memoryLocked = false;
+
+    renderMemoryBoard();
+}
+
+function renderMemoryBoard() {
+
+    app.innerHTML = `
+        <main class="game-screen memory-game-screen">
+
+            <div class="game-header">
+
+                <button class="back-button"
+                        onclick="showMemoryLevelIntro()">←</button>
+
+                <div>
+                    <div class="step-label">
+                        LEVEL ${memoryLevel}
+                    </div>
+
+                    <h1>Find the Pairs</h1>
+                </div>
+
             </div>
 
             <p class="game-instruction">
-                Find the matching pairs.
+                Find all the matching pictures.
             </p>
 
-            <div class="memory-board" id="memory-board"></div>
+            <div class="memory-progress">
+                Pairs found:
+                <strong>${memoryMatched}</strong>
+                /
+                ${memoryCards.length / 2}
+            </div>
 
-            <p class="game-score">
-                Matches: <span id="match-count">0</span> / 4
+            <div class="memory-image-board">
+
+                ${memoryCards.map((card, index) => `
+                    <button
+                        class="memory-image-card"
+                        id="memory-card-${index}"
+                        onclick="flipMemoryCard(${index})">
+
+                        <span class="memory-card-back">?</span>
+
+                        <img
+                            src="${card.image}"
+                            alt="${card.name}">
+                    </button>
+                `).join("")}
+
+            </div>
+
+            <p id="memory-message"
+               class="game-message">
             </p>
 
         </main>
     `;
-
-    createMemoryGame();
 }
 
-function createMemoryGame() {
-    const cards = ["🌸", "🌸", "🦋", "🦋", "🍎", "🍎", "⭐", "⭐"];
+function flipMemoryCard(index) {
 
-    cards.sort(() => Math.random() - 0.5);
+    if (memoryLocked) return;
 
-    const board = document.getElementById("memory-board");
+    const cardElement =
+        document.getElementById(`memory-card-${index}`);
 
-    let firstCard = null;
-    let secondCard = null;
-    let locked = false;
-    let matches = 0;
+    if (
+        memoryFlipped.includes(index) ||
+        cardElement.classList.contains("matched")
+    ) {
+        return;
+    }
 
-    cards.forEach((symbol) => {
+    cardElement.classList.add("flipped");
 
-        const card = document.createElement("button");
+    memoryFlipped.push(index);
 
-        card.className = "memory-card";
-        card.dataset.symbol = symbol;
-        card.innerHTML = "?";
+    if (memoryFlipped.length < 2) {
+        return;
+    }
 
-        card.onclick = () => {
+    memoryLocked = true;
 
-            if (locked || card === firstCard || card.classList.contains("matched")) {
-                return;
-            }
+    const firstIndex = memoryFlipped[0];
+    const secondIndex = memoryFlipped[1];
 
-            card.innerHTML = symbol;
+    const firstCard = memoryCards[firstIndex];
+    const secondCard = memoryCards[secondIndex];
 
-            if (!firstCard) {
-                firstCard = card;
-                return;
-            }
+    if (firstCard.name === secondCard.name) {
 
-            secondCard = card;
-            locked = true;
+        document
+            .getElementById(`memory-card-${firstIndex}`)
+            .classList.add("matched");
 
-            if (firstCard.dataset.symbol === secondCard.dataset.symbol) {
+        document
+            .getElementById(`memory-card-${secondIndex}`)
+            .classList.add("matched");
 
-                firstCard.classList.add("matched");
-                secondCard.classList.add("matched");
+        memoryMatched++;
 
-                matches++;
+        memoryScore += 5;
 
-                document.getElementById("match-count").innerText = matches;
+        memoryFlipped = [];
+        memoryLocked = false;
 
-                firstCard = null;
-                secondCard = null;
-                locked = false;
+        renderMemoryProgress();
 
-                if (matches === 4) {
-                    setTimeout(() => {
-                        alert("Great job! You found all the pairs. 🌸");
-                    }, 300);
-                }
+        if (memoryMatched === memoryCards.length / 2) {
 
-            } else {
+            setTimeout(() => {
+                completeMemoryLevel();
+            }, 600);
+        }
 
-                setTimeout(() => {
-                    firstCard.innerHTML = "?";
-                    secondCard.innerHTML = "?";
+    } else {
 
-                    firstCard = null;
-                    secondCard = null;
-                    locked = false;
-                }, 800);
-            }
-        };
+        setTimeout(() => {
 
-        board.appendChild(card);
-    });
+            document
+                .getElementById(`memory-card-${firstIndex}`)
+                .classList.remove("flipped");
+
+            document
+                .getElementById(`memory-card-${secondIndex}`)
+                .classList.remove("flipped");
+
+            memoryFlipped = [];
+            memoryLocked = false;
+
+        }, 900);
+    }
 }
 
-let sequenceLevel = 1;
-let sequenceScore = 0;
-let sequence = [];
-let sequenceAnswer = [];
-let sequenceIndex = 0;
+function renderMemoryProgress() {
+
+    const progress = document.querySelector(".memory-progress");
+
+    if (progress) {
+        progress.innerHTML = `
+            Pairs found:
+            <strong>${memoryMatched}</strong>
+            /
+            ${memoryCards.length / 2}
+        `;
+    }
+}
+
+function completeMemoryLevel() {
+    recordGameResult("Find the Pairs", memoryScore, memoryLevel);
+
+    if (memoryLevel < 3) {
+
+        app.innerHTML = `
+            <main class="game-screen memory-game-screen">
+
+                <div class="memory-reward-screen">
+
+                    <div class="big-reward">
+                        ⭐
+                    </div>
+
+                    <h1>Well done! 🌸</h1>
+
+                    <p>
+                        You found all the matching pairs.
+                    </p>
+
+                    <div class="reward-points">
+                        +${memoryMatched * 5} points
+                    </div>
+
+                    <p>
+                        Total: ${memoryScore} points
+                    </p>
+
+                    <button class="primary-button"
+                            onclick="nextMemoryLevel()">
+                        Next Level →
+                    </button>
+
+                </div>
+
+            </main>
+        `;
+
+    } else {
+
+        app.innerHTML = `
+            <main class="game-screen memory-game-screen">
+
+                <div class="memory-reward-screen">
+
+                    <div class="big-reward">
+                        🏆
+                    </div>
+
+                    <h1>Excellent! 🌸</h1>
+
+                    <p>
+                        You completed all 3 levels.
+                    </p>
+
+                    <div class="reward-points">
+                        ⭐ ${memoryScore} points
+                    </div>
+
+                    <p>
+                        Your memory is getting stronger.
+                    </p>
+
+                    <button class="primary-button"
+                            onclick="showGames()">
+                        Back to Activities
+                    </button>
+
+                </div>
+
+            </main>
+        `;
+    }
+}
+
+function nextMemoryLevel() {
+
+    memoryLevel++;
+
+    showMemoryLevelIntro();
+}
 
 function startNumberGame() {
     sequenceLevel = 1;
@@ -1895,6 +3049,7 @@ function chooseSequenceNumber(number) {
 }
 
 function completeSequenceLevel() {
+    recordGameResult("Remember the Sequence", sequenceScore, sequenceLevel);
 
     if (sequenceLevel < 3) {
 
@@ -2025,7 +3180,70 @@ function startNumberRound() {
     }, 2500);
 }
 
-function startPeopleActivity() {
+let spotLevel = 1;
+let spotScore = 0;
+let spotFound = 0;
+
+const spotLevels = [
+    {
+        level: 1,
+        differences: 5,
+        original: "/static/companio_spot_difference_levels/level_2_cow_5_differences/original.png",
+        changed: "/static/companio_spot_difference_levels/level_2_cow_5_differences/changed.png",
+        spots: [
+            { x: 22, y: 25 },
+            { x: 63, y: 28 },
+            { x: 75, y: 35 },
+            { x: 55, y: 65 },
+            { x: 13, y: 82 }
+        ]
+    },
+
+    {
+        level: 2,
+        differences: 7,
+        original: "/static/companio_spot_difference_levels/level_3_icecream_7_differences/original.png",
+        changed: "/static/companio_spot_difference_levels/level_3_icecream_7_differences/changed.png",
+        spots: [
+            { x: 18, y: 22 },
+            { x: 50, y: 20 },
+            { x: 67, y: 28 },
+            { x: 77, y: 45 },
+            { x: 25, y: 62 },
+            { x: 55, y: 70 },
+            { x: 88, y: 88 }
+        ]
+    },
+
+    {
+        level: 3,
+        differences: 10,
+        original: "/static/companio_spot_difference_levels/level_4_bugs_10_differences/original.png",
+        changed: "/static/companio_spot_difference_levels/level_4_bugs_10_differences/changed.png",
+        spots: [
+            { x: 18, y: 28 },
+            { x: 38, y: 22 },
+            { x: 60, y: 25 },
+            { x: 82, y: 25 },
+            { x: 30, y: 48 },
+            { x: 48, y: 50 },
+            { x: 65, y: 52 },
+            { x: 82, y: 55 },
+            { x: 35, y: 75 },
+            { x: 70, y: 78 }
+        ]
+    }
+];
+
+function startSpotDifference() {
+    spotLevel = 1;
+    spotScore = 0;
+    showSpotLevelIntro();
+}
+
+function showSpotLevelIntro() {
+    const level = spotLevels[spotLevel - 1];
+
     document.getElementById("app").innerHTML = `
         <main class="game-screen">
 
@@ -2033,43 +3251,333 @@ function startPeopleActivity() {
                 <button class="back-button" onclick="showGames()">←</button>
 
                 <div>
-                    <div class="step-label">MEMORY ACTIVITY</div>
-                    <h1>Familiar People</h1>
+                    <div class="step-label">BRAIN ACTIVITY</div>
+                    <h1>Spot the Difference</h1>
                 </div>
             </div>
 
-            <div class="people-activity">
+            <div class="memory-level-card">
 
-                <p class="game-instruction">
-                    Who is this person?
+                <div class="level-badge">
+                    LEVEL ${level.level}
+                </div>
+
+                <h2>👀 Spot the Difference</h2>
+
+                <p>
+                    Find ${level.differences} differences
+                    between the two pictures.
                 </p>
 
-                <div class="person-placeholder">
-                    👩
-                </div>
+                <p class="level-score">
+                    ⭐ Points: ${spotScore}
+                </p>
 
-                <div class="people-options">
-
-                    <button onclick="checkPersonAnswer(this, true)">
-                        Family Member
-                    </button>
-
-                    <button onclick="checkPersonAnswer(this, false)">
-                        Friend
-                    </button>
-
-                    <button onclick="checkPersonAnswer(this, false)">
-                        Doctor
-                    </button>
-
-                </div>
-
-                <p id="people-message" class="game-message"></p>
+                <button class="primary-button"
+                    onclick="startSpotRound()">
+                    Start Level
+                </button>
 
             </div>
 
         </main>
     `;
+}
+
+function startSpotRound() {
+    const level = spotLevels[spotLevel - 1];
+
+    spotFound = 0;
+
+    document.getElementById("app").innerHTML = `
+        <main class="game-screen">
+
+            <div class="game-header">
+                <button class="back-button"
+                    onclick="showSpotLevelIntro()">←</button>
+
+                <div>
+                    <div class="step-label">LEVEL ${level.level}</div>
+                    <h1>Spot the Difference</h1>
+                </div>
+            </div>
+
+            <p class="game-instruction">
+                Look carefully and tap the differences.
+            </p>
+
+            <div class="spot-images">
+
+                <div class="spot-image-box">
+                    <span>Picture 1</span>
+
+                    <div class="spot-picture">
+                        <img src="${level.original}">
+                        ${createSpotHotspots(level)}
+                    </div>
+                </div>
+
+                <div class="spot-image-box">
+                    <span>Picture 2</span>
+
+                    <div class="spot-picture">
+                        <img src="${level.changed}">
+                        ${createSpotHotspots(level)}
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="spot-progress">
+                Differences found:
+                <strong id="spot-found">0</strong>
+                / ${level.differences}
+            </div>
+
+        </main>
+    `;
+}
+
+function createSpotHotspots(level) {
+    return level.spots.map((spot, index) => `
+        <button
+            class="spot-hotspot"
+            style="left:${spot.x}%; top:${spot.y}%"
+            onclick="findSpotDifference(${index}, this)">
+        </button>
+    `).join("");
+}
+
+function findSpotDifference(index, button) {
+
+    if (button.classList.contains("found")) {
+        return;
+    }
+
+    button.classList.add("found");
+
+    spotFound++;
+
+    document.getElementById("spot-found").innerText = spotFound;
+
+    if (spotFound === spotLevels[spotLevel - 1].differences) {
+        spotScore += spotLevel * 10;
+
+        setTimeout(() => {
+            completeSpotLevel();
+        }, 600);
+    }
+}
+
+function completeSpotLevel() {
+    recordGameResult("Spot the Difference", spotScore, spotLevel);
+
+    if (spotLevel < spotLevels.length) {
+
+        document.getElementById("app").innerHTML = `
+            <main class="game-screen">
+
+                <div class="memory-reward-screen">
+
+                    <div class="reward-icon">🌟</div>
+
+                    <h1>Level Complete!</h1>
+
+                    <p>
+                        You found all the differences!
+                    </p>
+
+                    <h2>⭐⭐ Great job!</h2>
+
+                    <p>
+                        Points earned:
+                        <strong>+${spotLevel * 10}</strong>
+                    </p>
+
+                    <button class="primary-button"
+                        onclick="nextSpotLevel()">
+                        Next Level →
+                    </button>
+
+                </div>
+
+            </main>
+        `;
+
+    } else {
+
+        document.getElementById("app").innerHTML = `
+            <main class="game-screen">
+
+                <div class="memory-reward-screen">
+
+                    <div class="reward-icon">🏆</div>
+
+                    <h1>All Levels Complete!</h1>
+
+                    <p>
+                        Amazing! You found every difference.
+                    </p>
+
+                    <h2>⭐⭐⭐</h2>
+
+                    <p>
+                        Your total score:
+                        <strong>${spotScore}</strong>
+                    </p>
+
+                    <button class="primary-button"
+                        onclick="showGames()">
+                        Back to Activities
+                    </button>
+
+                </div>
+
+            </main>
+        `;
+    }
+}
+
+function nextSpotLevel() {
+    spotLevel++;
+    showSpotLevelIntro();
+}
+
+function startPeopleActivity() {
+    document.getElementById("app").innerHTML = `
+        <main class="form-screen">
+
+            <div class="screen-header">
+                <button class="back-button" onclick="showGames()">←</button>
+
+                <div>
+                    <div class="step-label">PERSONAL</div>
+                    <h1>Familiar People</h1>
+                </div>
+            </div>
+
+            <div class="dashboard-card" style="margin-top: 40px;">
+
+                <div style="font-size: 50px; text-align: center;">👥</div>
+
+                <h2>People You Know</h2>
+
+                <p>
+                    Add people who are familiar and important to you.
+                </p>
+
+                <button class="primary-button"
+                        onclick="showAddPersonForm()">
+                    + Add a Person
+                </button>
+
+            </div>
+
+            <div id="people-list"></div>
+
+        </main>
+    `;
+
+    renderPeopleList();
+}
+
+let familiarPeople = [];
+
+function showAddPersonForm() {
+    document.getElementById("app").innerHTML = `
+        <main class="form-screen">
+
+            <div class="screen-header">
+                <button class="back-button"
+                        onclick="startPeopleActivity()">←</button>
+
+                <div>
+                    <div class="step-label">PERSONAL</div>
+                    <h1>Add a Person</h1>
+                </div>
+            </div>
+
+            <div class="dashboard-card" style="margin-top: 40px;">
+
+                <label>Name</label>
+                <input
+                    type="text"
+                    id="person-name"
+                    placeholder="Enter their name"
+                >
+
+                <label>Relationship</label>
+                <input
+                    type="text"
+                    id="person-relation"
+                    placeholder="e.g. Daughter, Brother, Friend"
+                >
+
+                <button class="primary-button"
+                        onclick="saveFamiliarPerson()">
+                    Save Person
+                </button>
+
+            </div>
+
+        </main>
+    `;
+}
+
+function saveFamiliarPerson() {
+    const name = document.getElementById("person-name").value.trim();
+    const relation = document.getElementById("person-relation").value.trim();
+
+    if (!name || !relation) {
+        alert("Please enter the name and relationship.");
+        return;
+    }
+
+    familiarPeople.push({
+        name: name,
+        relation: relation
+    });
+
+    startPeopleActivity();
+}
+
+function renderPeopleList() {
+    const list = document.getElementById("people-list");
+
+    if (!list) return;
+
+    if (familiarPeople.length === 0) {
+        list.innerHTML = `
+            <div class="dashboard-card">
+                <p style="text-align: center;">
+                    No familiar people added yet.
+                </p>
+            </div>
+        `;
+        return;
+    }
+
+    list.innerHTML = familiarPeople.map((person, index) => `
+        <div class="dashboard-card familiar-person-card">
+
+            <div>
+                <h2>👤 ${person.name}</h2>
+                <p>${person.relation}</p>
+            </div>
+
+            <button
+                class="secondary-button"
+                onclick="removeFamiliarPerson(${index})">
+                Remove
+            </button>
+
+        </div>
+    `).join("");
+}
+
+function removeFamiliarPerson(index) {
+    familiarPeople.splice(index, 1);
+    startPeopleActivity();
 }
 
 function checkPersonAnswer(button, correct) {
@@ -2625,4 +4133,734 @@ function showPatientProfile() {
 
         </main>
     `;
+}
+
+let whatDidYouSeeLevel = 1;
+let whatDidYouSeeScore = 0;
+let whatDidYouSeeQuestion = 0;
+
+const whatDidYouSeeLevels = [
+    {
+        level: 1,
+        image: "/static/what-did-you-see/level1_living_room.png",
+        seconds: 8,
+        questions: [
+            {
+                question: "What color was the sofa?",
+                options: ["Blue", "Green", "Red", "Yellow"],
+                answer: "Blue"
+            },
+            {
+                question: "What color was the lamp?",
+                options: ["Blue", "Red", "Green", "Yellow"],
+                answer: "Red"
+            },
+            {
+                question: "What was on the wall?",
+                options: ["A picture", "A clock", "A mirror", "A TV"],
+                answer: "A picture"
+            }
+        ]
+    },
+
+    {
+        level: 2,
+        image: "/static/what-did-you-see/level2_kitchen.png",
+        seconds: 10,
+        questions: [
+            {
+                question: "What color was the refrigerator?",
+                options: ["Green", "Blue", "Red", "Yellow"],
+                answer: "Green"
+            },
+            {
+                question: "What color was the large pot?",
+                options: ["Green", "Blue", "Red", "Yellow"],
+                answer: "Green"
+            },
+            {
+                question: "What color was the small cup?",
+                options: ["Blue", "Red", "Green", "Yellow"],
+                answer: "Blue"
+            },
+            {
+                question: "What was hanging near the cabinet?",
+                options: ["Fruit", "Keys", "Clothes", "Plates"],
+                answer: "Fruit"
+            },
+            {
+                question: "What color was the oven door?",
+                options: ["Blue", "Green", "Red", "Yellow"],
+                answer: "Blue"
+            }
+        ]
+    },
+
+    {
+        level: 3,
+        image: "/static/what-did-you-see/level3_park.png",
+        seconds: 12,
+        questions: [
+            {
+                question: "What animal was the woman walking?",
+                options: ["Dog", "Cat", "Rabbit", "Bird"],
+                answer: "Dog"
+            },
+            {
+                question: "Who was sitting on the bench?",
+                options: ["A man", "A woman", "A child", "Nobody"],
+                answer: "A man"
+            },
+            {
+                question: "What was the man on the grass riding?",
+                options: ["A bicycle", "A scooter", "A skateboard", "A car"],
+                answer: "A bicycle"
+            },
+            {
+                question: "What was the boy playing with?",
+                options: ["A football", "A kite", "A ball", "A bicycle"],
+                answer: "A ball"
+            },
+            {
+                question: "What was the child in the foreground eating?",
+                options: ["Ice cream", "Cake", "Apple", "Candy"],
+                answer: "Ice cream"
+            },
+            {
+                question: "What color was the woman's jacket?",
+                options: ["Pink", "Blue", "Green", "Yellow"],
+                answer: "Pink"
+            },
+            {
+                question: "What was the man on the bench reading?",
+                options: ["A newspaper", "A book", "A magazine", "A letter"],
+                answer: "A book"
+            }
+        ]
+    }
+];
+
+function startWhatDidYouSee() {
+    whatDidYouSeeLevel = 1;
+    whatDidYouSeeScore = 0;
+    showWhatDidYouSeeIntro();
+}
+
+function showWhatDidYouSeeIntro() {
+    const level = whatDidYouSeeLevels[whatDidYouSeeLevel - 1];
+
+    document.getElementById("app").innerHTML = `
+        <main class="game-screen">
+
+            <div class="game-header">
+                <button class="back-button" onclick="showGames()">←</button>
+
+                <div>
+                    <div class="step-label">ATTENTION ACTIVITY</div>
+                    <h1>What Did You See?</h1>
+                </div>
+            </div>
+
+            <div class="memory-level-card">
+
+                <div class="level-badge">
+                    LEVEL ${level.level}
+                </div>
+
+                <h2>🧠 What Did You See?</h2>
+
+                <p>
+                    Look carefully at the picture and remember
+                    what you see.
+                </p>
+
+                <p>
+                    You will have <strong>${level.seconds} seconds</strong>
+                    to look.
+                </p>
+
+                <p class="level-score">
+                    ⭐ Points: ${whatDidYouSeeScore}
+                </p>
+
+                <button class="primary-button"
+                    onclick="showWhatDidYouSeeImage()">
+                    Start Level
+                </button>
+
+            </div>
+
+        </main>
+    `;
+}
+
+function showWhatDidYouSeeImage() {
+    const level = whatDidYouSeeLevels[whatDidYouSeeLevel - 1];
+
+    document.getElementById("app").innerHTML = `
+        <main class="game-screen">
+
+            <div class="game-header">
+                <div>
+                    <div class="step-label">LEVEL ${level.level}</div>
+                    <h1>Look Carefully 👀</h1>
+                </div>
+            </div>
+
+            <p class="game-instruction">
+                Remember as much as you can.
+            </p>
+
+            <div class="what-see-image-container">
+                <img
+                    src="${level.image}"
+                    class="what-see-image"
+                >
+            </div>
+
+            <div class="what-see-timer">
+                <span id="what-see-countdown">
+                    ${level.seconds}
+                </span> seconds
+            </div>
+
+        </main>
+    `;
+
+    let remaining = level.seconds;
+
+    const timer = setInterval(() => {
+        remaining--;
+
+        const countdown =
+            document.getElementById("what-see-countdown");
+
+        if (countdown) {
+            countdown.innerText = remaining;
+        }
+
+        if (remaining <= 0) {
+            clearInterval(timer);
+            showWhatDidYouSeeQuestion();
+        }
+
+    }, 1000);
+}
+
+function showWhatDidYouSeeQuestion() {
+    const level = whatDidYouSeeLevels[whatDidYouSeeLevel - 1];
+    const current = level.questions[whatDidYouSeeQuestion];
+
+    document.getElementById("app").innerHTML = `
+        <main class="game-screen">
+
+            <div class="game-header">
+                <button class="back-button"
+                    onclick="showWhatDidYouSeeIntro()">←</button>
+
+                <div>
+                    <div class="step-label">
+                        LEVEL ${level.level}
+                    </div>
+                    <h1>What Did You See?</h1>
+                </div>
+            </div>
+
+            <div class="what-see-question">
+
+                <p class="question-count">
+                    Question ${whatDidYouSeeQuestion + 1}
+                    / ${level.questions.length}
+                </p>
+
+                <h2>${current.question}</h2>
+
+                <div class="what-see-options">
+
+                    ${current.options.map(option => `
+                        <button
+                            onclick="answerWhatDidYouSee('${option.replace(/'/g, "\\'")}')">
+                            ${option}
+                        </button>
+                    `).join("")}
+
+                </div>
+
+                <p id="what-see-message"
+                    class="game-message">
+                </p>
+
+            </div>
+
+        </main>
+    `;
+}
+
+function answerWhatDidYouSee(selected) {
+    const level = whatDidYouSeeLevels[whatDidYouSeeLevel - 1];
+    const current = level.questions[whatDidYouSeeQuestion];
+    const message = document.getElementById("what-see-message");
+
+    if (selected === current.answer) {
+        whatDidYouSeeScore += whatDidYouSeeLevel * 10;
+
+        message.innerText = "Correct! 🌟";
+        message.className = "game-message correct";
+
+        setTimeout(() => {
+            nextWhatDidYouSeeQuestion();
+        }, 700);
+
+    } else {
+        message.innerText = "Not quite — let's keep going! 💛";
+        message.className = "game-message wrong";
+
+        setTimeout(() => {
+            nextWhatDidYouSeeQuestion();
+        }, 700);
+    }
+}
+
+function nextWhatDidYouSeeQuestion() {
+    const level = whatDidYouSeeLevels[whatDidYouSeeLevel - 1];
+
+    whatDidYouSeeQuestion++;
+
+    if (whatDidYouSeeQuestion >= level.questions.length) {
+        completeWhatDidYouSeeLevel();
+    } else {
+        showWhatDidYouSeeQuestion();
+    }
+}
+
+function completeWhatDidYouSeeLevel() {
+    const level = whatDidYouSeeLevels[whatDidYouSeeLevel - 1];
+    recordGameResult("What Did You See?", whatDidYouSeeScore, whatDidYouSeeLevel);
+
+    if (whatDidYouSeeLevel < whatDidYouSeeLevels.length) {
+
+        document.getElementById("app").innerHTML = `
+            <main class="game-screen">
+
+                <div class="memory-reward-screen">
+
+                    <div class="reward-icon">🌟</div>
+
+                    <h1>Level Complete!</h1>
+
+                    <p>You finished all the questions.</p>
+
+                    <h2>⭐ Great job!</h2>
+
+                    <p>
+                        Your score:
+                        <strong>${whatDidYouSeeScore}</strong>
+                    </p>
+
+                    <button class="primary-button"
+                        onclick="nextWhatDidYouSeeLevel()">
+                        Next Level →
+                    </button>
+
+                </div>
+
+            </main>
+        `;
+
+    } else {
+
+        document.getElementById("app").innerHTML = `
+            <main class="game-screen">
+
+                <div class="memory-reward-screen">
+
+                    <div class="reward-icon">🏆</div>
+
+                    <h1>All Levels Complete!</h1>
+
+                    <p>
+                        You remembered so many details!
+                    </p>
+
+                    <h2>⭐⭐⭐</h2>
+
+                    <p>
+                        Total score:
+                        <strong>${whatDidYouSeeScore}</strong>
+                    </p>
+
+                    <button class="primary-button"
+                        onclick="showGames()">
+                        Back to Activities
+                    </button>
+
+                </div>
+
+            </main>
+        `;
+    }
+}
+
+function nextWhatDidYouSeeLevel() {
+    whatDidYouSeeLevel++;
+    whatDidYouSeeQuestion = 0;
+    showWhatDidYouSeeIntro();
+}
+
+// ==================== READ & RESPOND ====================
+
+let readRespondLevel = 1;
+let readRespondScore = 0;
+let readRespondQuestion = 0;
+
+const readRespondLevels = [
+    {
+        title: "A Morning at the Park",
+        passage: "Riya went to the park with her grandmother one sunny morning. They sat under a big tree and watched the birds. Riya saw a red kite flying high in the sky. After a while, they walked home together.",
+        questions: [
+            {
+                question: "Who went to the park with Riya?",
+                options: ["Her grandmother", "Her brother", "Her teacher"],
+                answer: 0
+            },
+            {
+                question: "What did they sit under?",
+                options: ["A small house", "A big tree", "A bridge"],
+                answer: 1
+            },
+            {
+                question: "What color was the kite?",
+                options: ["Blue", "Green", "Red"],
+                answer: 2
+            }
+        ]
+    },
+
+    {
+        title: "The Family Lunch",
+        passage: "On Sunday, Arun's family had lunch together at home. His mother prepared rice, vegetables and dal. Arun helped set the table while his sister brought the glasses. After lunch, everyone sat together and talked about their week.",
+        questions: [
+            {
+                question: "When did the family have lunch?",
+                options: ["Monday", "Sunday", "Friday"],
+                answer: 1
+            },
+            {
+                question: "Where did the family have lunch?",
+                options: ["At home", "At a restaurant", "At the park"],
+                answer: 0
+            },
+            {
+                question: "Who prepared the food?",
+                options: ["Arun", "His sister", "His mother"],
+                answer: 2
+            },
+            {
+                question: "What did Arun help with?",
+                options: ["Cooking", "Setting the table", "Washing clothes"],
+                answer: 1
+            },
+            {
+                question: "What did everyone do after lunch?",
+                options: ["Went outside", "Talked together", "Went to sleep"],
+                answer: 1
+            }
+        ]
+    },
+
+    {
+        title: "A Visit to the Market",
+        passage: "Meena visited the local market with her daughter in the evening. They bought fresh vegetables, apples and some flowers. The market was busy, and many people were walking from one shop to another. Before going home, Meena stopped at a small tea shop and had a cup of tea with her daughter.",
+        questions: [
+            {
+                question: "Who went to the market with Meena?",
+                options: ["Her daughter", "Her sister", "Her friend"],
+                answer: 0
+            },
+            {
+                question: "When did they visit the market?",
+                options: ["In the morning", "At noon", "In the evening"],
+                answer: 2
+            },
+            {
+                question: "Which fruit did they buy?",
+                options: ["Apples", "Bananas", "Mangoes"],
+                answer: 0
+            },
+            {
+                question: "What else did they buy?",
+                options: ["Books", "Flowers", "Shoes"],
+                answer: 1
+            },
+            {
+                question: "How was the market?",
+                options: ["Quiet", "Empty", "Busy"],
+                answer: 2
+            },
+            {
+                question: "Where did Meena stop before going home?",
+                options: ["A tea shop", "A library", "A school"],
+                answer: 0
+            },
+            {
+                question: "Who had tea with Meena?",
+                options: ["Her daughter", "Her friend", "Her neighbor"],
+                answer: 0
+            }
+        ]
+    }
+];
+
+function startReadRespond() {
+    readRespondLevel = 1;
+    readRespondScore = 0;
+    readRespondQuestion = 0;
+
+    showReadRespondIntro();
+}
+
+function showReadRespondIntro() {
+    const level = readRespondLevels[readRespondLevel - 1];
+
+    document.getElementById("app").innerHTML = `
+        <main class="form-screen">
+
+            <div class="screen-header">
+                <button class="back-button" onclick="showGames()">←</button>
+
+                <div>
+                    <div class="step-label">READ & RESPOND</div>
+                    <h1>${level.title}</h1>
+                </div>
+            </div>
+
+            <div class="dashboard-card" style="margin-top: 40px; text-align: center;">
+
+                <div style="font-size: 50px;">📖</div>
+
+                <h2>Level ${readRespondLevel} of 3</h2>
+
+                <p>
+                    Read the passage carefully and answer the questions
+                    that follow.
+                </p>
+
+                <button class="primary-button" onclick="startReadRespondLevel()">
+                    Start Level
+                </button>
+
+            </div>
+
+        </main>
+    `;
+}
+
+function startReadRespondLevel() {
+    readRespondQuestion = 0;
+    showReadRespondPassage();
+}
+
+function showReadRespondPassage() {
+    const level = readRespondLevels[readRespondLevel - 1];
+
+    document.getElementById("app").innerHTML = `
+        <main class="form-screen">
+
+            <div class="screen-header">
+                <button class="back-button" onclick="showGames()">←</button>
+
+                <div>
+                    <div class="step-label">LEVEL ${readRespondLevel}</div>
+                    <h1>Read Carefully</h1>
+                </div>
+            </div>
+
+            <div class="dashboard-card" style="margin-top: 40px;">
+
+                <h2>${level.title}</h2>
+
+                <div class="reading-passage">
+                    ${level.passage}
+                </div>
+
+                <button class="primary-button"
+                        onclick="showReadRespondQuestion()">
+                    Continue
+                </button>
+
+            </div>
+
+        </main>
+    `;
+}
+
+function showReadRespondQuestion() {
+    const level = readRespondLevels[readRespondLevel - 1];
+    const question = level.questions[readRespondQuestion];
+
+    document.getElementById("app").innerHTML = `
+        <main class="form-screen">
+
+            <div class="screen-header">
+                <button class="back-button" onclick="showGames()">←</button>
+
+                <div>
+                    <div class="step-label">
+                        QUESTION ${readRespondQuestion + 1}
+                        OF ${level.questions.length}
+                    </div>
+                    <h1>Read & Respond</h1>
+                </div>
+            </div>
+
+            <div class="dashboard-card" style="margin-top: 40px;">
+
+                <div class="reading-question">
+                    ${question.question}
+                </div>
+
+                <div class="reading-options">
+
+                    ${question.options.map((option, index) => `
+                        <button
+                            class="reading-option"
+                            onclick="answerReadRespond(${index})">
+                            ${option}
+                        </button>
+                    `).join("")}
+
+                </div>
+
+            </div>
+
+        </main>
+    `;
+}
+
+function answerReadRespond(selectedAnswer) {
+    const level = readRespondLevels[readRespondLevel - 1];
+    const question = level.questions[readRespondQuestion];
+
+    if (selectedAnswer === question.answer) {
+        readRespondScore += 10;
+    }
+
+    readRespondQuestion++;
+
+    if (readRespondQuestion < level.questions.length) {
+        showReadRespondQuestion();
+    } else {
+        completeReadRespondLevel();
+    }
+}
+
+function completeReadRespondLevel() {
+    recordGameResult("Read & Respond", readRespondScore, readRespondLevel);
+    document.getElementById("app").innerHTML = `
+        <main class="form-screen">
+
+            <div class="dashboard-card"
+                 style="margin-top: 80px; text-align: center;">
+
+                <div style="font-size: 60px;">⭐</div>
+
+                <h1>Well Done!</h1>
+
+                <p>
+                    You completed Level ${readRespondLevel}.
+                </p>
+
+                <div class="score-card">
+                    <strong>Your Score</strong>
+                    <span>${readRespondScore}</span>
+                </div>
+
+                ${
+                    readRespondLevel < 3
+                    ? `
+                        <p>Ready for the next level?</p>
+
+                        <button class="primary-button"
+                                onclick="nextReadRespondLevel()">
+                            Next Level
+                        </button>
+                    `
+                    : `
+                        <p>You completed all three levels!</p>
+
+                        <button class="primary-button"
+                                onclick="showGames()">
+                            Back to Activities
+                        </button>
+                    `
+                }
+
+            </div>
+
+        </main>
+    `;
+}
+
+function nextReadRespondLevel() {
+    readRespondLevel++;
+    showReadRespondIntro();
+}
+
+function showAccessChoice() {
+    document.getElementById("app").innerHTML = `
+        <main class="form-screen access-choice-screen">
+
+            <div class="screen-header">
+                <div>
+                    <div class="step-label">SETUP COMPLETE</div>
+                    <h1>Who will be using Companio?</h1>
+                </div>
+            </div>
+
+            <p class="setup-intro-description">
+                Choose how you would like to use Companio.
+            </p>
+
+            <div class="access-choice-card patient-access"
+                 onclick="openPatientAccess()">
+
+                <div class="access-icon">👤</div>
+
+                <div>
+                    <h2>Patient</h2>
+                    <p>
+                        Play activities, manage your routine,
+                        view memories and use your daily companion.
+                    </p>
+                </div>
+
+                <span class="access-arrow">→</span>
+            </div>
+
+            <div class="access-choice-card caregiver-access"
+                 onclick="openCaregiverAccess()">
+
+                <div class="access-icon">👥</div>
+
+                <div>
+                    <h2>Caregiver</h2>
+                    <p>
+                        View activities, progress, routine,
+                        medicines and updates.
+                    </p>
+                </div>
+
+                <span class="access-arrow">→</span>
+            </div>
+
+        </main>
+    `;
+}
+
+function openPatientAccess() {
+    showPatientDashboard();
+}
+
+function openCaregiverAccess() {
+    showCaregiverDashboard();
 }
