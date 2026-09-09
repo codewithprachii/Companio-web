@@ -1553,7 +1553,11 @@ async function saveRoutine() {
         return;
     }
 
-    showPatientDashboard();
+    if (setupFor === "someone") {
+        showAccessChoice();
+    } else {
+        showPatientStartChoice();
+    }
 }  
 
 function showPatientDashboard() {
@@ -4804,6 +4808,61 @@ function completeReadRespondLevel() {
 function nextReadRespondLevel() {
     readRespondLevel++;
     showReadRespondIntro();
+}
+
+function showPatientStartChoice() {
+    document.getElementById("app").innerHTML = `
+        <main class="form-screen access-choice-screen">
+
+            <div class="screen-header">
+                <div>
+                    <div class="step-label">COMPANIO</div>
+                    <h1>What would you like to do?</h1>
+                </div>
+            </div>
+
+            <div class="access-choice-content">
+
+                <p class="access-choice-description">
+                    Choose where you'd like to go.
+                </p>
+
+                <div class="access-choice-options">
+
+                    <button class="access-choice-card"
+                            onclick="showPatientDashboard()">
+                        <div class="access-choice-icon">🏠</div>
+
+                        <div>
+                            <h2>Open Dashboard</h2>
+                            <p>
+                                View your routine, medicines, hydration,
+                                memories and daily activities.
+                            </p>
+                        </div>
+
+                        <span class="access-arrow">→</span>
+                    </button>
+
+                    <button class="access-choice-card"
+                            onclick="showGames()">
+                        <div class="access-choice-icon">🧠</div>
+
+                        <div>
+                            <h2>Play Games</h2>
+                            <p>
+                                Choose a brain activity and start playing.
+                            </p>
+                        </div>
+
+                        <span class="access-arrow">→</span>
+                    </button>
+
+                </div>
+            </div>
+
+        </main>
+    `;
 }
 
 function showAccessChoice() {

@@ -3936,3 +3936,20 @@ body {
     font-size: 15px;
 }
 
+
+/* ---------------- FLOWER LOGO (IMAGE) ---------------- */
+.flower-logo {
+    width: 180px;
+    height: 180px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: none;
+}
+.flower-logo img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
