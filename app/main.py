@@ -1,3 +1,4 @@
+import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -7,6 +8,8 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
+
+logger = logging.getLogger("companio.startup")
 from app.database import Base, engine, SessionLocal
 from app import models  # noqa: F401 - register models
 from app.routers import (
@@ -35,8 +38,15 @@ async def seed_db():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await init_db()
-    await seed_db()
+    try:
+        await init_db()
+        await seed_db()
+    except Exception:
+        logger.exception(
+            "Database initialization/seed failed. The app will keep serving, "
+            "but database-backed endpoints may return errors until the database "
+            "is reachable."
+        )
     yield
 
 
