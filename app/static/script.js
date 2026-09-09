@@ -17,7 +17,7 @@ async function api(path, opts = {}) {
         const detail = json && json.detail
             ? (typeof json.detail === "string" ? json.detail : JSON.stringify(json.detail))
             : "Error " + res.status;
-        throw new Error(detail);
+        throw new Error(detail + " (" + (opts.method || "GET") + " " + (API + path) + " -> " + res.status + ")");
     }
     return json;
 }
