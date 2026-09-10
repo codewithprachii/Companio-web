@@ -3,7 +3,7 @@ const loadingPercentage = document.getElementById("loading-percentage");
 
 // ---------------- API LAYER ----------------
 
-const API = "/api";
+const API = "";
 
 async function api(path, opts = {}) {
     const res = await fetch(API + path, {
