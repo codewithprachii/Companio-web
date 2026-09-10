@@ -1851,7 +1851,10 @@ function showPatientDashboard() {
                     ⚙
                     <span>Settings</span>
                 </button>
-            <div class="dashboard-header">
+            </div>
+
+            <!-- FOOTER -->
+            <div class="dashboard-footer">
                 <p>Good Morning</p>
                 <h1>Hello, ${patientName} 👋</h1>
                 <p>Age: ${patientAge}</p>
