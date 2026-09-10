@@ -19,8 +19,21 @@ def _build_connect_args(raw_url: str) -> dict:
 
     if url.get_backend_name() == "postgresql":
         connect_args["ssl"] = True
+        connect_args["timeout"] = 5
 
     return connect_args
+
+
+def database_is_configured() -> bool:
+    """True when DATABASE_URL targets a real (non-loopback) database.
+
+    The default localhost URL means no database is available, so startup
+    should not attempt to create tables or seed data on it. Local SQLite
+    databases (host is empty/None) are treated as configured so development
+    and smoke tests still initialize normally.
+    """
+    host = make_url(settings.database_url).host
+    return host not in ("localhost", "127.0.0.1", "::1")
 
 
 def _strip_sqlalchemy_driver(url: str) -> str:
@@ -49,6 +62,8 @@ engine = create_async_engine(
     echo=settings.debug,
     future=True,
     connect_args=_build_connect_args(_raw_url),
+    pool_pre_ping=True,
+    pool_recycle=60,
 )
 
 SessionLocal = async_sessionmaker(
